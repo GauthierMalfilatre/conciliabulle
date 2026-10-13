@@ -3,6 +3,13 @@ import type { Slot } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { dayKey, formatDay, formatTime } from "@/lib/format";
 
+// Not Map.groupBy: Node 20, which Next.js 16 still supports, does not have it.
+function slotsByDay(slots: Slot[]) {
+  const byDay = new Map<string, Slot[]>();
+  for (const s of slots) byDay.set(dayKey(s.debut), [...(byDay.get(dayKey(s.debut)) ?? []), s]);
+  return byDay;
+}
+
 export const slotButtonClasses = cn(
   "inline-flex min-h-11 items-center gap-3 rounded-md bg-secondary px-3 text-base font-semibold text-secondary-foreground",
   "transition-colors hover:bg-primary hover:text-white",
@@ -33,7 +40,7 @@ export function AvailabilityGrid({
   mobileDays?: number;
   selectedId?: string;
 }) {
-  const byDay = Map.groupBy(slots, (s) => dayKey(s.debut));
+  const byDay = slotsByDay(slots);
   return (
     <div
       className="grid gap-2"
@@ -94,7 +101,7 @@ export function SlotList({
   hrefFor: (slot: Slot) => string;
   selectedId?: string;
 }) {
-  const byDay = Map.groupBy(slots, (s) => dayKey(s.debut));
+  const byDay = slotsByDay(slots);
 
   return (
     <ul className="flex flex-col divide-y divide-border">

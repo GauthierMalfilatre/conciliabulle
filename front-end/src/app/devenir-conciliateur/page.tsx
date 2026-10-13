@@ -23,6 +23,7 @@ export default function DevenirConciliateurPage({ searchParams }: PageProps<"/de
   return (
     <Container className="flex max-w-4xl flex-col gap-8 py-8 sm:py-12">
       <PageHeading
+        eyebrow="Rejoindre l'association"
         title="Devenir conciliateur de justice"
         description="Un engagement bénévole, au service des habitants de votre territoire : aider des personnes en désaccord à trouver une solution amiable, sans procès."
       />

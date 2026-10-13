@@ -5,8 +5,10 @@
 export const SESSION_COOKIE = "session_token";
 
 export type SessionPayload = {
-  /** Backend token, sent to the API. */
+  /** JWT access token sent to the API (a few minutes; the proxy refreshes it). */
   tok: string;
+  /** JWT refresh token. */
+  ref: string;
   /** Issued at, expires at, last activity: epoch milliseconds. */
   iat: number;
   exp: number;

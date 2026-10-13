@@ -6,7 +6,6 @@ import { BackLink, Container } from "@/components/layout";
 import {
   bookingHref,
   ConciliateurAvatar,
-  ModeList,
   parseWeek,
   WeekNavigator,
   WeekSlots,
@@ -57,7 +56,6 @@ async function Conciliateur({
   if (!conciliateur) notFound();
   const week = parseWeek(param(sp, "semaine"), conciliateur.horizonSemaines);
   const { days, slots } = await getWeekSlots(id, week);
-  const tel = conciliateur.telephone;
 
   return (
     <>
@@ -69,9 +67,11 @@ async function Conciliateur({
             <div>
               <h1 className="text-3xl">{conciliateur.nom}</h1>
               <p className="text-lg">Conciliateur de justice</p>
-              <p className="text-base">{conciliateur.domaines.map((d) => DOMAINES[d].label).join(" · ")}</p>
+              {conciliateur.domaines.length > 0 && (
+                <p className="text-base">{conciliateur.domaines.map((d) => DOMAINES[d].label).join(" · ")}</p>
+              )}
               <p className="flex items-center gap-1.5 text-base text-muted-foreground">
-                <Icon name="mapPin" /> {conciliateur.ville} · {conciliateur.region.nom}
+                <Icon name="mapPin" /> {conciliateur.ville} · {conciliateur.departement.nom} ({conciliateur.departement.code})
               </p>
             </div>
           </div>
@@ -82,10 +82,11 @@ async function Conciliateur({
         <div className="flex flex-col gap-6">
           <Card className="p-6">
             <h2 className="text-2xl">Prendre rendez-vous</h2>
-            {conciliateur.reservationOuverte ? (
+            {conciliateur.lieux.length > 0 ? (
               <>
                 <p className="mt-1 text-base text-muted-foreground">
-                  Choisissez un horaire. Le rendez-vous dure {conciliateur.dureeMinutes} minutes.
+                  Choisissez un horaire.
+                  {conciliateur.dureeMinutes ? ` Le rendez-vous dure ${conciliateur.dureeMinutes} minutes.` : ""}
                 </p>
                 <div className="mt-5 flex flex-col gap-4">
                   <WeekNavigator
@@ -99,24 +100,27 @@ async function Conciliateur({
               </>
             ) : (
               <p className="mt-3 rounded-lg bg-muted p-4 text-base">
-                La prise de rendez-vous en ligne est momentanément suspendue. Appelez le {tel} ou
-                demandez à être rappelé.
+                Ce conciliateur n&apos;a pas d&apos;horaire libre en ligne pour le moment. Demandez à être rappelé.
               </p>
             )}
           </Card>
 
-          <Section icon="message" title="Présentation">
-            <p>{conciliateur.presentation}</p>
-          </Section>
+          {conciliateur.presentation && (
+            <Section icon="message" title="Présentation">
+              <p>{conciliateur.presentation}</p>
+            </Section>
+          )}
           <Section icon="check" title="Gratuit">
             <p>
               La conciliation de justice est un service public gratuit. Le conciliateur est un
               bénévole nommé par la cour d&apos;appel : il est neutre et tenu au secret.
             </p>
           </Section>
-          <Section icon="languages" title="Langues parlées">
-            <p>{conciliateur.langues.join(", ")}</p>
-          </Section>
+          {conciliateur.langues.length > 0 && (
+            <Section icon="languages" title="Langues parlées">
+              <p>{conciliateur.langues.join(", ")}</p>
+            </Section>
+          )}
         </div>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
@@ -126,9 +130,12 @@ async function Conciliateur({
               <div className="flex gap-3">
                 <Icon name="mapPin" className="mt-1 size-5 shrink-0 text-primary" />
                 <div>
-                  <dt className="font-semibold">Lieu de permanence</dt>
-                  <dd>{conciliateur.lieu}</dd>
-                  <dd>{conciliateur.adresse}</dd>
+                  <dt className="font-semibold">{conciliateur.lieux.length > 1 ? "Lieux de permanence" : "Lieu de permanence"}</dt>
+                  {conciliateur.lieux.length > 0 ? (
+                    conciliateur.lieux.map((l) => <dd key={l}>{l}</dd>)
+                  ) : (
+                    <dd>{conciliateur.ville}</dd>
+                  )}
                   {conciliateur.accesPMR && (
                     <dd className="mt-1 flex items-center gap-1.5 text-sm text-emerald-700">
                       <Icon name="accessible" /> Accessible en fauteuil roulant
@@ -136,26 +143,19 @@ async function Conciliateur({
                   )}
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Icon name="phone" className="mt-1 size-5 shrink-0 text-primary" />
-                <div>
-                  <dt className="font-semibold">Téléphone</dt>
-                  <dd>
-                    <a href={`tel:${tel.replaceAll(" ", "")}`} className="hover:underline">
-                      {tel}
-                    </a>
-                  </dd>
+              {conciliateur.telephone && (
+                <div className="flex gap-3">
+                  <Icon name="phone" className="mt-1 size-5 shrink-0 text-primary" />
+                  <div>
+                    <dt className="font-semibold">Téléphone</dt>
+                    <dd>
+                      <a href={`tel:${conciliateur.telephone.replaceAll(" ", "")}`} className="hover:underline">
+                        {conciliateur.telephone}
+                      </a>
+                    </dd>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3">
-                <Icon name="calendar" className="mt-1 size-5 shrink-0 text-primary" />
-                <div>
-                  <dt className="font-semibold">Rendez-vous possibles</dt>
-                  <dd className="mt-1">
-                    <ModeList modes={conciliateur.modes} />
-                  </dd>
-                </div>
-              </div>
+              )}
             </dl>
           </Card>
           <Card className="flex flex-col gap-3 p-6">

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { cancelAppointment } from "@/app/actions/appointments";
 import { BackLink, Container } from "@/components/layout";
-import { Button, buttonClasses, Card, Field, Icon, Textarea } from "@/components/ui";
+import { Button, buttonClasses, Card, Icon } from "@/components/ui";
 import { getAppointment, isModifiable } from "@/lib/api/appointments";
 import { requireClient } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
@@ -24,8 +24,8 @@ export default function AnnulerPage({ params }: PageProps<"/mes-rendez-vous/[id]
 
 async function Annuler({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireClient();
-  const a = await getAppointment(id, user.id);
+  await requireClient();
+  const a = await getAppointment(id);
   if (!a) notFound();
   if (!isModifiable(a)) redirect(`/mes-rendez-vous/${id}?erreur=delai`);
 
@@ -46,9 +46,6 @@ async function Annuler({ params }: { params: Promise<{ id: string }> }) {
         </div>
         <form action={cancelAppointment} className="flex flex-col gap-5">
           <input type="hidden" name="id" value={a.id} />
-          <Field id="motif-annulation" label="Pouvez-vous nous dire pourquoi ? (facultatif)">
-            <Textarea id="motif-annulation" name="motif-annulation" className="text-base" />
-          </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link href={`/mes-rendez-vous/${a.id}`} className={buttonClasses({ variant: "outline", size: "lg" })}>
               Non, je garde mon rendez-vous

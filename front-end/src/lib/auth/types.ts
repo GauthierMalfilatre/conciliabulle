@@ -9,9 +9,11 @@ export const STATUS_LABELS: Record<Status, string> = {
 
 export type User = {
   id: string;
+  /** Full name. */
   name: string;
+  prenom: string;
+  nom: string;
   email: string;
-  telephone: string;
   status: Status;
   /** Set for conciliateurs: which directory entry they manage. */
   conciliateurId?: string;

@@ -4,7 +4,7 @@ import { Container } from "@/components/layout";
 import { ConciliateurCard, SearchForm, type SearchValues } from "@/components/conciliateurs";
 import { Alert, buttonClasses, Card, Icon } from "@/components/ui";
 import { searchConciliateurs } from "@/lib/api/conciliateurs";
-import { regionByCode } from "@/lib/api/referentiel";
+import { departement } from "@/lib/api/referentiel";
 import { param, withParams, type SearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "Trouver un conciliateur" };
@@ -23,14 +23,12 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
   const sp = await searchParams;
   const values: SearchValues = {
     q: param(sp, "q"),
-    region: param(sp, "region"),
-    domaine: param(sp, "domaine"),
-    mode: param(sp, "mode"),
+    departement: param(sp, "departement"),
     dispo: param(sp, "dispo"),
   };
   const pages = Math.max(1, Number(param(sp, "pages")) || 1);
   const { items, total } = await searchConciliateurs({ ...values, dispo: values.dispo === "1", limit: pages * PAGE_SIZE });
-  const region = values.region ? regionByCode(values.region) : undefined;
+  const dep = values.departement ? departement(values.departement) : undefined;
 
   return (
     <>
@@ -44,7 +42,7 @@ async function Results({ searchParams }: { searchParams: Promise<SearchParams> }
       <Container className="flex flex-col gap-5 py-8">
         <p className="text-lg" aria-live="polite">
           <strong>{total}</strong> conciliateur{total > 1 ? "s" : ""}
-          {region ? <> en {region.nom}</> : <> en France</>}
+          {dep ? <> dans le département {dep.nom} ({dep.code})</> : <> en France</>}
         </p>
 
         {items.length === 0 ? (

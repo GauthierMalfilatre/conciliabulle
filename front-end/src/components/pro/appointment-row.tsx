@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { MODE_ICONS } from "@/components/conciliateurs";
 import { Icon } from "@/components/ui";
-import { DOMAINES, MODES, MOTIF_AUTRE } from "@/lib/api/referentiel";
 import type { ProAppointment } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatTime } from "@/lib/format";
 import { AppointmentStatusBadge } from "./status";
 
-/** One line of the diary: time, client, subject, channel and status. */
+/** One line of the diary: time, client, subject, place and status. */
 export function AppointmentRow({ a, showDate }: { a: ProAppointment; showDate?: string }) {
   return (
     <Link
@@ -26,12 +24,10 @@ export function AppointmentRow({ a, showDate }: { a: ProAppointment; showDate?: 
         <span className="mb-1 block sm:hidden">
           <AppointmentStatusBadge statut={a.statut} />
         </span>
-        <span className="flex flex-wrap items-center gap-x-3 text-base text-muted-foreground">
-          <span>{a.motif === "autre" ? MOTIF_AUTRE.label : DOMAINES[a.motif].label}</span>
-          <span className="flex items-center gap-1">
-            <Icon name={MODE_ICONS[a.mode]} />
-            {MODES[a.mode].label}
-          </span>
+        {a.motif && <span className="block truncate text-base text-muted-foreground">{a.motif}</span>}
+        <span className="flex items-center gap-1 text-base text-muted-foreground">
+          <Icon name="mapPin" className="shrink-0" />
+          <span className="truncate">{a.lieu}</span>
         </span>
       </span>
       <span className="max-sm:hidden">

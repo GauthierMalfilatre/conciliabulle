@@ -29,7 +29,6 @@ export async function saveSettingsAction(fd: FormData) {
       break;
     case "rendez-vous":
       patch = {
-        delaiModificationHeures: num(fd, "delaiModificationHeures"),
         maxRdvAVenir: num(fd, "maxRdvAVenir"),
         dureesRdvAutorisees: fd.getAll("dureesRdvAutorisees").map(Number),
         dureeReunionMinutes: num(fd, "dureeReunionMinutes"),

@@ -4,7 +4,6 @@ import { DOMAINES } from "@/lib/api/referentiel";
 import type { ConciliateurWithSlots } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/format";
 import { ConciliateurAvatar } from "./conciliateur-avatar";
-import { ModeList } from "./mode";
 import { AvailabilityGrid } from "./slot-list";
 
 export function bookingHref(slotId: string) {
@@ -26,16 +25,20 @@ export function ConciliateurCard({ conciliateur }: { conciliateur: ConciliateurW
               </Link>
             </h2>
             <p className="text-base">Conciliateur de justice</p>
-            <p className="text-sm text-muted-foreground">
-              {conciliateur.domaines.map((d) => DOMAINES[d].label).join(" · ")}
-            </p>
+            {conciliateur.domaines.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {conciliateur.domaines.map((d) => DOMAINES[d].label).join(" · ")}
+              </p>
+            )}
           </div>
         </div>
         <p className="flex gap-2 text-base">
           <Icon name="mapPin" className="mt-1 size-5 text-muted-foreground" />
           <span>
-            <span className="block font-semibold">{conciliateur.lieu}</span>
-            {conciliateur.adresse}
+            <span className="block font-semibold">
+              {conciliateur.ville} ({conciliateur.departement.code})
+            </span>
+            {conciliateur.prochainCreneau?.lieu}
             {conciliateur.accesPMR && (
               <span className="mt-0.5 flex items-center gap-1.5 text-sm text-emerald-700">
                 <Icon name="accessible" /> Accessible en fauteuil roulant
@@ -43,7 +46,7 @@ export function ConciliateurCard({ conciliateur }: { conciliateur: ConciliateurW
             )}
           </span>
         </p>
-        <ModeList modes={conciliateur.modes} />
+        {conciliateur.presentation && <p className="line-clamp-2 text-base text-muted-foreground">{conciliateur.presentation}</p>}
         <Link
           href={href}
           className="mt-auto inline-flex w-fit items-center gap-1 text-base font-semibold text-primary hover:underline"
@@ -73,9 +76,7 @@ export function ConciliateurCard({ conciliateur }: { conciliateur: ConciliateurW
           </div>
         ) : (
           <p className="flex flex-1 items-center justify-center py-4 text-center text-base text-muted-foreground">
-            {conciliateur.reservationOuverte ? "Aucune disponibilité en ligne." : "Réservation en ligne suspendue."}
-            <br />
-            Appelez le {conciliateur.telephone}.
+            Aucune disponibilité en ligne pour le moment.
           </p>
         )}
       </div>

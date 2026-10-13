@@ -3,11 +3,14 @@
 import { useSearchParams } from "next/navigation";
 import { useActionState, useState } from "react";
 import { login, type LoginState } from "@/app/actions/auth";
-import { Alert, Button, Field, Icon, Input, type IconName } from "@/components/ui";
+import Link from "next/link";
+import { Alert, Button, buttonClasses, Field, Icon, Input, type IconName } from "@/components/ui";
 
+// Created by `manage.py seed_demo` on the API (development only).
+const DEMO_PASSWORD = "Demo-pass-2026!";
 const DEMO_ACCOUNTS: { email: string; label: string; icon: IconName }[] = [
-  { email: "justiciable@test.fr", label: "Justiciable", icon: "users" },
-  { email: "conciliateur@test.fr", label: "Conciliateur", icon: "briefcase" },
+  { email: "alice.durand@demo.fr", label: "Justiciable", icon: "users" },
+  { email: "jean.martin@demo.fr", label: "Conciliateur", icon: "briefcase" },
 ];
 
 export function LoginForm() {
@@ -63,6 +66,14 @@ export function LoginForm() {
         </Button>
       </form>
 
+      <Link
+        href={next === "/" ? "/inscription" : `/inscription?next=${encodeURIComponent(next)}`}
+        className={buttonClasses({ variant: "outline", size: "lg" })}
+      >
+        Créer un compte
+      </Link>
+
+      {process.env.NODE_ENV !== "production" && (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
@@ -76,7 +87,7 @@ export function LoginForm() {
               variant="outline"
               onClick={() => {
                 setEmail(account.email);
-                setPassword("password");
+                setPassword(DEMO_PASSWORD);
               }}
             >
               <Icon name={account.icon} />
@@ -85,6 +96,7 @@ export function LoginForm() {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

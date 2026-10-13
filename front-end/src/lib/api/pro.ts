@@ -1,22 +1,15 @@
-import { finOf } from "./appointments";
+import { isPast, type ApiAppointment } from "./appointments";
+import { type ApiSlot } from "./conciliateurs";
 import { toSeance } from "./dossiers";
+import { api } from "./http";
 import { fakeLatency } from "./latency";
-import { addDays, startOfDay, toMinutes, ymd } from "./schedule";
-import {
-  conciliateurById,
-  db,
-  newId,
-  parametres,
-  platform,
-  type AppointmentRecord,
-  type DossierRecord,
-  type ProfilPatch,
-} from "./store";
+import { addDays, hhmm, startOfDay, toMinutes, ymd } from "./schedule";
+import { claimDemo, db, newId, platform, suivi, type DossierRecord } from "./store";
 import {
   ApiError,
-  type Absence,
   type Domaine,
   type DossierStatut,
+  type Horaires,
   type Mode,
   type Parametres,
   type ProAppointment,
@@ -24,56 +17,71 @@ import {
   type Weekday,
 } from "./types";
 
-// Conciliateur-side fake backend. Every function takes the conciliateur id from
-// the session (never from the client) and only touches that conciliateur's data.
+// Conciliateur side. Appointments, office hours, slots, profile, notifications and
+// the calendar feed come from the API (me/…, scoped to the signed-in conciliateur).
+// Attendance, notes, cases and callback requests are a demo backend for now.
 
-function toPro(r: AppointmentRecord): ProAppointment {
-  const fin = finOf(r);
-  const past = new Date(fin).getTime() < Date.now();
+type ApiMySlot = ApiSlot & { is_booked: boolean };
+type ApiAvailability = {
+  id: number;
+  /** 0 = Monday. */
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  slot_minutes: number;
+  location: string;
+};
+type ApiProfile = { id: number; city: string; department: string; bio: string; instructions: string; is_verified: boolean };
+type ApiNotification = {
+  id: number;
+  kind: "APPOINTMENT_BOOKED" | "APPOINTMENT_UPDATED" | "APPOINTMENT_CANCELLED";
+  message: string;
+  appointment_id: number | null;
+  created_at: string;
+  read_at: string | null;
+};
+
+function toPro(a: ApiAppointment): ProAppointment {
+  const id = String(a.id);
+  const s = suivi(id);
+  const fin = a.slot.end;
   return {
-    id: r.id,
-    debut: r.debut,
+    id,
+    debut: a.slot.start,
     fin,
-    mode: r.mode,
-    motif: r.motif,
-    client: r.client,
-    statut: r.annulation ? "annule" : r.presence ?? (past ? "a_renseigner" : "a_venir"),
-    creeLe: r.creeLe,
-    annulation: r.annulation && { par: r.annulation.par, message: r.annulation.message },
-    note: r.note,
-    dossierId: r.dossierId,
+    mode: "sur_place",
+    lieu: a.slot.location,
+    motif: a.motive,
+    client: { nom: `${a.first_name} ${a.last_name}`.trim(), telephone: a.phone },
+    statut: a.status === "CANCELLED" ? "annule" : s.presence ?? (isPast({ fin }) ? "a_renseigner" : "a_venir"),
+    note: s.note,
+    dossierId: s.dossierId,
   };
-}
-
-function mine(conciliateurId: string) {
-  return [...db().appointments.values()].filter((r) => r.conciliateurId === conciliateurId);
-}
-
-function ownedAppointment(conciliateurId: string, id: string) {
-  const r = db().appointments.get(id);
-  if (!r || r.conciliateurId !== conciliateurId) throw new ApiError(404, "Rendez-vous introuvable.");
-  return r;
 }
 
 const byDate = (a: { debut: string }, b: { debut: string }) => a.debut.localeCompare(b.debut);
 
+/** GET me/appointments */
+async function myAppointments() {
+  return (await api<ApiAppointment[]>("me/appointments")).map(toPro).sort(byDate);
+}
+
 // --- Dashboard & diary -------------------------------------------------------
 
-/** GET /pro/dashboard */
 export async function getDashboard(conciliateurId: string) {
-  await fakeLatency(200);
+  claimDemo(conciliateurId);
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
   const in7 = addDays(today, 7);
-  const all = mine(conciliateurId).map(toPro).sort(byDate);
+  const [all, notifications, demandes] = await Promise.all([myAppointments(), listNotifications(), listDemandes(conciliateurId)]);
   const active = all.filter((a) => a.statut !== "annule");
   const aujourdhui = active.filter((a) => new Date(a.debut) >= today && new Date(a.debut) < tomorrow);
   const aVenir = active.filter((a) => a.statut === "a_venir" && new Date(a.debut) >= tomorrow);
-  const demandes = await listDemandes(conciliateurId);
   return {
     aujourdhui,
     prochains: aVenir.slice(0, 5),
     aRenseigner: all.filter((a) => a.statut === "a_renseigner"),
+    notifications: notifications.filter((n) => !n.lu).slice(0, 5),
     stats: {
       semaine: active.filter((a) => new Date(a.debut) >= today && new Date(a.debut) < in7).length,
       aRenseigner: all.filter((a) => a.statut === "a_renseigner").length,
@@ -81,150 +89,218 @@ export async function getDashboard(conciliateurId: string) {
       changements: demandes.changements.length,
       dossiersEnCours: db().dossiers.filter((d) => d.conciliateurId === conciliateurId && d.statut === "en_cours").length,
     },
-    reservationOuverte: conciliateurById(conciliateurId)?.reservationOuverte ?? false,
   };
 }
 
-/** GET /pro/agenda?from=&to= — `week` 0 is the current week, starting Monday. */
-export async function getAgenda(conciliateurId: string, week: number) {
-  await fakeLatency(200);
+/** `week` 0 is the current week, starting Monday: appointments and free slots of each day. */
+export async function getAgenda(week: number) {
   const today = startOfDay(new Date());
   const monday = addDays(today, -((today.getDay() + 6) % 7) + week * 7);
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const end = addDays(monday, 7);
-  const appointments = mine(conciliateurId)
-    .filter((r) => new Date(r.debut) >= monday && new Date(r.debut) < end)
-    .map(toPro)
-    .sort(byDate);
-  const p = parametres(conciliateurId);
+  const [appointments, slots] = await Promise.all([
+    myAppointments(),
+    api<ApiMySlot[]>("me/slots", { query: { from: monday.toISOString(), to: end.toISOString() } }),
+  ]);
+  const inWeek = appointments.filter((a) => new Date(a.debut) >= monday && new Date(a.debut) < end);
   return {
-    days: days.map((d) => ({
+    days: Array.from({ length: 7 }, (_, i) => addDays(monday, i)).map((d) => ({
       date: d.toISOString(),
-      absence: p.absences.find((a) => a.du <= ymd(d) && ymd(d) <= a.au),
-      appointments: appointments.filter((a) => ymd(new Date(a.debut)) === ymd(d)),
+      appointments: inWeek.filter((a) => ymd(new Date(a.debut)) === ymd(d)),
+      libres: slots.filter((s) => !s.is_booked && ymd(new Date(s.start)) === ymd(d)).length,
     })),
   };
 }
 
-/** GET /pro/appointments/:id */
-export async function getProAppointment(conciliateurId: string, id: string) {
-  await fakeLatency(150);
-  const r = db().appointments.get(id);
-  return r && r.conciliateurId === conciliateurId ? toPro(r) : null;
+export async function getProAppointment(id: string) {
+  return (await myAppointments()).find((a) => a.id === id) ?? null;
 }
 
-/** POST /pro/appointments/:id/presence — only once the appointment has started. */
-export async function setPresence(conciliateurId: string, id: string, presence: "honore" | "absent") {
-  await fakeLatency(300);
-  const r = ownedAppointment(conciliateurId, id);
-  if (r.annulation || new Date(r.debut).getTime() > Date.now()) {
+async function ownedAppointment(id: string) {
+  const a = await getProAppointment(id);
+  if (!a) throw new ApiError(404, "Rendez-vous introuvable.");
+  return a;
+}
+
+/** Demo: attendance, only once the appointment has started. */
+export async function setPresence(id: string, presence: "honore" | "absent") {
+  const a = await ownedAppointment(id);
+  if (a.statut === "annule" || new Date(a.debut).getTime() > Date.now()) {
     throw new ApiError(409, "Ce rendez-vous n'a pas encore eu lieu.");
   }
-  r.presence = presence;
+  suivi(id).presence = presence;
 }
 
-/** POST /pro/appointments/:id/cancel — the client is notified with the message. */
-export async function cancelByConciliateur(conciliateurId: string, id: string, message: string) {
-  await fakeLatency(300);
-  const r = ownedAppointment(conciliateurId, id);
-  if (r.annulation || new Date(r.debut).getTime() < Date.now()) {
-    throw new ApiError(409, "Ce rendez-vous ne peut plus être annulé.");
+/** Demo: private note. */
+export async function saveNote(id: string, note: string) {
+  await ownedAppointment(id);
+  suivi(id).note = note || undefined;
+}
+
+// --- Notifications & calendar feed ----------------------------------------------
+
+/** GET me/notifications — alerts when an appointment is booked, changed or cancelled. */
+export async function listNotifications() {
+  const data = await api<ApiNotification[]>("me/notifications");
+  return data.map((n) => ({
+    id: String(n.id),
+    type: n.kind === "APPOINTMENT_BOOKED" ? "nouveau" : n.kind === "APPOINTMENT_CANCELLED" ? "annule" : "modifie",
+    message: n.message,
+    rendezVousId: n.appointment_id === null ? undefined : String(n.appointment_id),
+    le: n.created_at,
+    lu: n.read_at !== null,
+  }));
+}
+
+/** POST me/notifications/read-all */
+export async function markNotificationsRead() {
+  await api("me/notifications/read-all", { method: "POST" });
+}
+
+/** GET me/calendar → private URL to subscribe to from Google Agenda, Outlook… */
+export async function getCalendarLink() {
+  return (await api<{ url: string }>("me/calendar")).url;
+}
+
+/** POST me/calendar → a new URL; the old one stops working. */
+export async function renewCalendarLink() {
+  return (await api<{ url: string }>("me/calendar", { method: "POST" })).url;
+}
+
+// --- Office hours (recurring availabilities) ------------------------------------
+
+/** Rules starting before this time are morning ones. */
+const MIDI = 13 * 60;
+
+const emptyHoraires = (): Horaires =>
+  Object.fromEntries(
+    ([1, 2, 3, 4, 5, 6] as Weekday[]).map((d) => [
+      d,
+      { matin: { actif: false, debut: "09:00", fin: "12:00" }, apresMidi: { actif: false, debut: "14:00", fin: "17:00" } },
+    ]),
+  ) as unknown as Horaires;
+
+/** GET me/availabilities, as half-days from Monday to Saturday. */
+export async function getParametres(): Promise<Parametres> {
+  const rules = await api<ApiAvailability[]>("me/availabilities");
+  const horaires = emptyHoraires();
+  for (const r of rules) {
+    if (r.weekday > 5) continue;
+    const debut = r.start_time.slice(0, 5);
+    const day = horaires[(r.weekday + 1) as Weekday];
+    day[toMinutes(debut) < MIDI ? "matin" : "apresMidi"] = { actif: true, debut, fin: r.end_time.slice(0, 5) };
   }
-  r.annulation = { par: "conciliateur", message: message || undefined, le: new Date().toISOString() };
+  return {
+    horaires,
+    dureeMinutes: rules[0]?.slot_minutes ?? platform().dureesRdvAutorisees[0],
+    lieu: rules[0]?.location ?? "",
+  };
 }
 
-/** PUT /pro/appointments/:id/note */
-export async function saveNote(conciliateurId: string, id: string, note: string) {
-  await fakeLatency(200);
-  ownedAppointment(conciliateurId, id).note = note || undefined;
-}
-
-// --- Settings ----------------------------------------------------------------
-
-/** GET /pro/settings */
-export async function getParametres(conciliateurId: string): Promise<Parametres> {
-  await fakeLatency(150);
-  return structuredClone(parametres(conciliateurId));
-}
-
-/** PUT /pro/settings — 400 when a half-day ends before it starts. */
-export async function saveParametres(
-  conciliateurId: string,
-  input: Pick<Parametres, "horaires" | "dureeMinutes" | "delaiMinHeures" | "horizonSemaines">,
-) {
-  await fakeLatency(300);
+/**
+ * Saves the half-days as recurring availabilities: rules that changed are
+ * replaced, the others are left alone. Deleting a rule removes its future free
+ * slots; booked appointments are kept. Sunday rules are not touched.
+ */
+export async function saveParametres(input: Parametres) {
   if (!platform().dureesRdvAutorisees.includes(input.dureeMinutes)) {
     throw new ApiError(400, "Cette durée de rendez-vous n'est pas proposée sur la plateforme.");
   }
-  for (const d of Object.keys(input.horaires).map(Number) as Weekday[]) {
+  if (!input.lieu.trim()) throw new ApiError(400, "Indiquez le lieu des rendez-vous.");
+  const wanted: Omit<ApiAvailability, "id">[] = [];
+  for (const d of [1, 2, 3, 4, 5, 6] as Weekday[]) {
     for (const plage of [input.horaires[d].matin, input.horaires[d].apresMidi]) {
-      if (plage.actif && toMinutes(plage.fin) - toMinutes(plage.debut) < input.dureeMinutes) {
+      if (!plage.actif) continue;
+      if (toMinutes(plage.fin) - toMinutes(plage.debut) < input.dureeMinutes) {
         throw new ApiError(400, "Chaque plage doit durer au moins un rendez-vous, et finir après son début.");
       }
+      wanted.push({ weekday: d - 1, start_time: plage.debut, end_time: plage.fin, slot_minutes: input.dureeMinutes, location: input.lieu.trim() });
     }
   }
-  Object.assign(parametres(conciliateurId), input);
-}
-
-/** PUT /pro/profile { reservationOuverte } */
-export async function setReservationOuverte(conciliateurId: string, ouverte: boolean) {
-  await fakeLatency(200);
-  await patchProfil(conciliateurId, { reservationOuverte: ouverte });
-}
-
-/** POST /pro/absences — returns the appointments it overlaps, to deal with. */
-export async function addAbsence(conciliateurId: string, input: Omit<Absence, "id">) {
-  await fakeLatency(300);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.du) || !/^\d{4}-\d{2}-\d{2}$/.test(input.au) || input.au < input.du) {
-    throw new ApiError(400, "La date de fin doit être après la date de début.");
+  const key = (r: Omit<ApiAvailability, "id">) =>
+    [r.weekday, r.start_time.slice(0, 5), r.end_time.slice(0, 5), r.slot_minutes, r.location].join("|");
+  const existing = (await api<ApiAvailability[]>("me/availabilities")).filter((r) => r.weekday <= 5);
+  const keep = new Set(wanted.map(key));
+  const have = new Set(existing.map(key));
+  for (const r of existing.filter((r) => !keep.has(key(r)))) {
+    await api(`me/availabilities/${r.id}`, { method: "DELETE" });
   }
-  const absence = { ...input, id: newId("abs") };
-  parametres(conciliateurId).absences.push(absence);
-  parametres(conciliateurId).absences.sort((a, b) => a.du.localeCompare(b.du));
-  return absence;
+  for (const r of wanted.filter((r) => !have.has(key(r)))) {
+    await api("me/availabilities", { method: "POST", body: r });
+  }
 }
 
-/** DELETE /pro/absences/:id */
-export async function removeAbsence(conciliateurId: string, id: string) {
-  await fakeLatency(200);
-  const p = parametres(conciliateurId);
-  p.absences = p.absences.filter((a) => a.id !== id);
+/**
+ * Closes a period (holidays, illness…): its free slots are deleted. Booked
+ * appointments stay; they are returned so the conciliateur can call the people.
+ */
+export async function closePeriod(du: string, au: string) {
+  const date = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : null);
+  const from = date(du);
+  const to = date(au);
+  if (!from || !to || to < from) throw new ApiError(400, "La date de fin doit être après la date de début.");
+  const slots = await api<ApiMySlot[]>("me/slots", {
+    query: { from: (from < new Date() ? new Date() : from).toISOString(), to: addDays(to, 1).toISOString() },
+  });
+  let retires = 0;
+  for (const s of slots.filter((x) => !x.is_booked)) {
+    try {
+      await api(`me/slots/${s.id}`, { method: "DELETE" });
+      retires++;
+    } catch (e) {
+      // 409: a cancelled appointment still points to it; it stays, but nobody can book it twice.
+      if (!(e instanceof ApiError) || e.status !== 409) throw e;
+    }
+  }
+  return { retires, reserves: slots.filter((x) => x.is_booked).length };
 }
 
-/** Booked appointments falling within an absence: they must be moved or cancelled. */
-export function conflicts(conciliateurId: string, absence: Absence) {
-  return mine(conciliateurId)
-    .filter((r) => !r.annulation && absence.du <= ymd(new Date(r.debut)) && ymd(new Date(r.debut)) <= absence.au)
-    .map(toPro)
-    .sort(byDate);
+/** Upcoming days with at least one free slot, to show what is open. */
+export async function nextOpenDays(count = 10) {
+  const slots = await api<ApiMySlot[]>("me/slots", { query: { from: new Date().toISOString() } });
+  const days = new Map<string, { date: string; libres: number; premier: string; dernier: string }>();
+  for (const s of slots.filter((x) => !x.is_booked)) {
+    const k = ymd(new Date(s.start));
+    const d = days.get(k);
+    if (d) {
+      d.libres++;
+      d.dernier = hhmm(new Date(s.end));
+    } else {
+      days.set(k, { date: s.start, libres: 1, premier: hhmm(new Date(s.start)), dernier: hhmm(new Date(s.end)) });
+    }
+  }
+  return [...days.values()].slice(0, count);
 }
 
 // --- Public profile ----------------------------------------------------------
 
-/** GET /pro/profile */
-export async function getProfil(conciliateurId: string) {
-  await fakeLatency(150);
-  return conciliateurById(conciliateurId) ?? null;
+/** GET me/profile */
+export async function getProfil() {
+  const p = await api<ApiProfile>("me/profile");
+  return { id: String(p.id), ville: p.city, departement: p.department, presentation: p.bio, instructions: p.instructions, verifie: p.is_verified };
 }
 
-async function patchProfil(conciliateurId: string, patch: ProfilPatch) {
-  const profils = db().profils;
-  profils.set(conciliateurId, { ...profils.get(conciliateurId), ...patch });
+/** PATCH me/profile */
+export async function saveProfil(patch: { ville: string; departement: string; presentation: string; instructions: string }) {
+  if (!patch.ville) throw new ApiError(400, "Indiquez votre ville.");
+  try {
+    await api("me/profile", {
+      method: "PATCH",
+      body: { city: patch.ville, department: patch.departement, bio: patch.presentation, instructions: patch.instructions },
+    });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 400) {
+      throw new ApiError(400, /department/.test(JSON.stringify(e.body)) ? "Ce numéro de département n'existe pas." : "Vérifiez les informations saisies.");
+    }
+    throw e;
+  }
 }
 
-/** PUT /pro/profile — 400 when nothing would let clients book. */
-export async function saveProfil(conciliateurId: string, patch: ProfilPatch) {
-  await fakeLatency(300);
-  if (patch.domaines?.length === 0) throw new ApiError(400, "Choisissez au moins un type de litige.");
-  if (patch.modes?.length === 0) throw new ApiError(400, "Choisissez au moins un type de rendez-vous.");
-  await patchProfil(conciliateurId, patch);
-}
-
-// --- Requests to handle ------------------------------------------------------
+// --- Requests to handle (demo) -----------------------------------------------
 
 /** GET /pro/requests — callback requests and meeting change requests. */
 export async function listDemandes(conciliateurId: string) {
   await fakeLatency(150);
+  claimDemo(conciliateurId);
   const rappels = db()
     .callbacks.filter((c) => c.conciliateurId === conciliateurId)
     .sort((a, b) => Number(Boolean(a.traiteeLe)) - Number(Boolean(b.traiteeLe)) || b.createdAt.localeCompare(a.createdAt));
@@ -253,7 +329,7 @@ export async function markRappelTraite(conciliateurId: string, id: string) {
   c.traiteeLe = new Date().toISOString();
 }
 
-// --- Conciliation cases ------------------------------------------------------
+// --- Conciliation cases (demo) -----------------------------------------------
 
 function toProDossier(r: DossierRecord): ProDossier {
   return {
@@ -279,6 +355,7 @@ function ownedDossier(conciliateurId: string, id: string) {
 /** GET /pro/dossiers */
 export async function listProDossiers(conciliateurId: string) {
   await fakeLatency(150);
+  claimDemo(conciliateurId);
   return db()
     .dossiers.filter((d) => d.conciliateurId === conciliateurId)
     .map(toProDossier)
@@ -303,8 +380,7 @@ function code(reference: string) {
  * appointment's client (already identified); party B joins with their code.
  */
 export async function openDossier(conciliateurId: string, rendezVousId: string, autrePartie: string, objet: Domaine) {
-  await fakeLatency(400);
-  const rdv = ownedAppointment(conciliateurId, rendezVousId);
+  const rdv = await ownedAppointment(rendezVousId);
   if (rdv.dossierId) throw new ApiError(409, "Un dossier existe déjà pour ce rendez-vous.");
   if (!autrePartie.trim()) throw new ApiError(400, "Indiquez le nom de l'autre partie.");
   const reference = `${new Date().getFullYear()}-${String(400 + db().dossiers.length * 7).padStart(4, "0")}`;
@@ -316,14 +392,15 @@ export async function openDossier(conciliateurId: string, rendezVousId: string, 
     statut: "en_cours",
     ouvertLe: new Date().toISOString(),
     parties: [
-      { role: "A", nom: rdv.client.nom, code: code(reference), userId: rdv.userId },
+      // The API does not say which account booked: party A joins with their code too.
+      { role: "A", nom: rdv.client.nom, code: code(reference) },
       { role: "B", nom: autrePartie.trim(), code: code(reference) },
     ],
     seances: [],
     rendezVousId,
   };
   db().dossiers.push(dossier);
-  rdv.dossierId = dossier.id;
+  suivi(rendezVousId).dossierId = dossier.id;
   return dossier.id;
 }
 

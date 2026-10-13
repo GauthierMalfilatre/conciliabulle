@@ -1,15 +1,15 @@
 import { fakeLatency } from "./latency";
-import { allConciliateurs, DEFAULT_PLATFORM, parametres, platform } from "./store";
+import { DEFAULT_PLATFORM, platform } from "./store";
 import { ApiError, type PlatformSettings } from "./types";
 
 // Service settings, edited by conciliateurs from Paramètres › Réglages du service.
 
 /** Allowed values, shared with the settings form. */
 export const OPTIONS = {
-  sessionDureeHeures: [1, 4, 8, 24, 24 * 7, 24 * 30],
+  // Not beyond the API's refresh token, valid one day.
+  sessionDureeHeures: [1, 4, 8, 24],
   inactiviteMinutes: [0, 15, 30, 60, 120],
   maxEssaisCodeDossier: [3, 5, 10],
-  delaiModificationHeures: [12, 24, 48, 72],
   maxRdvAVenir: [0, 1, 2, 3, 5],
   dureesRdv: [20, 30, 45, 60, 90],
   dureeReunionMinutes: [45, 60, 90, 120],
@@ -31,7 +31,6 @@ export async function savePlatformSettings(patch: Partial<PlatformSettings>) {
     !allowed("sessionDureeHeures", patch.sessionDureeHeures) ||
     !allowed("inactiviteMinutes", patch.inactiviteMinutes) ||
     !allowed("maxEssaisCodeDossier", patch.maxEssaisCodeDossier) ||
-    !allowed("delaiModificationHeures", patch.delaiModificationHeures) ||
     !allowed("maxRdvAVenir", patch.maxRdvAVenir) ||
     !allowed("dureeReunionMinutes", patch.dureeReunionMinutes) ||
     !allowed("delaiRappelJours", patch.delaiRappelJours)
@@ -53,13 +52,6 @@ export async function savePlatformSettings(patch: Partial<PlatformSettings>) {
     throw new ApiError(400, "Écrivez le message du bandeau avant de l'afficher.");
   }
   Object.assign(platform(), patch);
-
-  // Conciliateurs keep a valid appointment length if it was removed from the list.
-  const durees = platform().dureesRdvAutorisees;
-  for (const c of allConciliateurs()) {
-    const p = parametres(c.id);
-    if (!durees.includes(p.dureeMinutes)) p.dureeMinutes = durees.reduce((a, b) => (Math.abs(b - 45) < Math.abs(a - 45) ? b : a)) as typeof p.dureeMinutes;
-  }
 }
 
 /** POST /reglages/reset */

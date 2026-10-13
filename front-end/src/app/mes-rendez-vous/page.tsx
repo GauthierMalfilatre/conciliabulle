@@ -34,9 +34,9 @@ export default function MesRendezVousPage({ searchParams }: PageProps<"/mes-rend
 
 async function List({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const user = await requireClient();
+  await requireClient();
   const scope = param(sp, "onglet") === "passes" ? "past" : "upcoming";
-  const items = await listMyAppointments(user.id, scope);
+  const items = await listMyAppointments(scope);
 
   const tabs = [
     { scope: "upcoming", href: "/mes-rendez-vous", label: "À venir" },

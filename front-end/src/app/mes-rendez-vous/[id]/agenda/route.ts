@@ -1,5 +1,4 @@
 import { getAppointment } from "@/lib/api/appointments";
-import { MODES } from "@/lib/api/referentiel";
 import { getCurrentUser } from "@/lib/auth/session";
 
 function icsDate(iso: string) {
@@ -10,10 +9,9 @@ function icsDate(iso: string) {
 export async function GET(_request: Request, ctx: RouteContext<"/mes-rendez-vous/[id]/agenda">) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
-  const a = user ? await getAppointment(id, user.id) : null;
+  const a = user?.status === "justiciable" ? await getAppointment(id) : null;
   if (!a) return new Response("Introuvable", { status: 404 });
 
-  const lieu = a.mode === "sur_place" ? `${a.conciliateur.lieu}, ${a.conciliateur.adresse}` : MODES[a.mode].label;
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -24,8 +22,8 @@ export async function GET(_request: Request, ctx: RouteContext<"/mes-rendez-vous
     `DTSTART:${icsDate(a.debut)}`,
     `DTEND:${icsDate(a.fin)}`,
     `SUMMARY:Rendez-vous avec ${a.conciliateur.nom}`,
-    `LOCATION:${lieu.replace(/,/g, "\\,")}`,
-    `DESCRIPTION:Contact : ${a.conciliateur.telephone}`,
+    `LOCATION:${a.lieu.replace(/[,;]/g, "\\$&")}`,
+    ...(a.conciliateur.telephone ? [`DESCRIPTION:Contact : ${a.conciliateur.telephone}`] : []),
     "BEGIN:VALARM",
     "TRIGGER:-P1D",
     "ACTION:DISPLAY",

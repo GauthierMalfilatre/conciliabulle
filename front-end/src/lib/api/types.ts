@@ -1,4 +1,5 @@
-export type Region = { code: string; nom: string };
+/** French département, e.g. { code: "69", nom: "Rhône" }. */
+export type Departement = { code: string; nom: string };
 
 export type Mode = "sur_place" | "telephone" | "visio";
 
@@ -9,23 +10,21 @@ export type Motif = Domaine | "autre";
 
 export type Conciliateur = {
   id: string;
+  /** Full name. */
   nom: string;
+  departement: Departement;
+  ville: string;
+  presentation: string;
+  // Not in the API yet: empty or missing, the pages hide them.
   domaines: Domaine[];
   langues: string[];
   modes: Mode[];
-  region: Region;
-  ville: string;
-  /** Where the conciliateur holds office hours, e.g. "Mairie du 11e arrondissement". */
-  lieu: string;
-  adresse: string;
-  telephone: string;
-  accesPMR: boolean;
-  presentation: string;
-  /** False while the conciliateur has paused online booking. */
-  reservationOuverte: boolean;
+  telephone?: string;
+  accesPMR?: boolean;
 };
 
-export type ConciliateurContact = Pick<Conciliateur, "id" | "nom" | "ville" | "lieu" | "adresse" | "telephone">;
+/** What a client needs to reach the conciliateur of an appointment or a case. */
+export type ConciliateurContact = Pick<Conciliateur, "id" | "nom" | "ville" | "telephone">;
 
 // --- Conciliateur settings -------------------------------------------------
 
@@ -37,34 +36,27 @@ export type Plage = { actif: boolean; debut: string; fin: string };
 
 export type Horaires = Record<Weekday, { matin: Plage; apresMidi: Plage }>;
 
-export type Absence = {
-  id: string;
-  /** "YYYY-MM-DD", inclusive. */
-  du: string;
-  au: string;
-  motif: string;
-};
-
+/** Weekly office hours, stored by the API as recurring availabilities. */
 export type Parametres = {
   horaires: Horaires;
   /** One of the lengths allowed by the platform settings. */
   dureeMinutes: number;
-  /** Minimum notice before a slot can be booked. */
-  delaiMinHeures: number;
-  /** How far ahead clients can book. */
-  horizonSemaines: number;
-  absences: Absence[];
+  /** Where appointments take place, e.g. "Mairie du 3e, salle des permanences". */
+  lieu: string;
 };
 
 // --- Slots & appointments ----------------------------------------------------
 
 export type Slot = {
+  /** `<conciliateur id>.<slot id>`, so that a slot alone says whose diary it is in. */
   id: string;
   conciliateurId: string;
   /** ISO 8601 */
   debut: string;
   fin: string;
   modes: Mode[];
+  /** Where it takes place. */
+  lieu: string;
 };
 
 export type AppointmentStatus = "confirme" | "annule" | "passe";
@@ -77,11 +69,16 @@ export type Appointment = {
   debut: string;
   fin: string;
   mode: Mode;
-  motif: Motif;
+  lieu: string;
+  /** What the client wrote when booking. */
+  motif: string;
+  /** Contact details given when booking. */
+  contact: { prenom: string; nom: string; telephone: string };
+  /** What to bring, set by the conciliateur. */
+  instructions: string;
   statut: AppointmentStatus;
   /** Past this instant the appointment can no longer be changed online. */
   modifiableJusquA: string;
-  annulation?: { par: "client" | "conciliateur"; message?: string };
 };
 
 export type ProAppointmentStatus = "a_venir" | "a_renseigner" | "honore" | "absent" | "annule";
@@ -92,11 +89,10 @@ export type ProAppointment = {
   debut: string;
   fin: string;
   mode: Mode;
-  motif: Motif;
+  lieu: string;
+  motif: string;
   client: { nom: string; telephone: string };
   statut: ProAppointmentStatus;
-  creeLe: string;
-  annulation?: { par: "client" | "conciliateur"; message?: string };
   note?: string;
   dossierId?: string;
 };
@@ -104,10 +100,9 @@ export type ProAppointment = {
 export type ConciliateurSearch = {
   /** Matches the conciliateur's name or city. */
   q?: string;
-  region?: string;
-  domaine?: string;
-  mode?: string;
-  /** Only conciliateurs with a free slot in the next 7 days. */
+  /** Département code. */
+  departement?: string;
+  /** Only conciliateurs with a free slot. */
   dispo?: boolean;
   limit?: number;
 };
@@ -179,13 +174,15 @@ export type CallbackRequest = {
   traiteeLe?: string;
 };
 
-/** Mirrors the HTTP status the real API would return. */
+/** An error answer of the API (or of the demo backend), with its HTTP status. */
 export class ApiError extends Error {
   constructor(
-    public status: 400 | 403 | 404 | 409,
+    public status: number,
     message: string,
     /** Machine-readable reason when a status covers several cases. */
     public code?: string,
+    /** The parsed error body, e.g. DRF field errors. */
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -201,8 +198,6 @@ export type PlatformSettings = {
   /** Wrong conciliation-case codes allowed before the account is blocked. */
   maxEssaisCodeDossier: number;
 
-  /** Clients can change or cancel online until this long before. */
-  delaiModificationHeures: number;
   /** Upcoming appointments a client may hold at once; 0 means no limit. */
   maxRdvAVenir: number;
   /** Appointment lengths conciliateurs may choose from. */
@@ -217,5 +212,4 @@ export type PlatformSettings = {
 
   numeroAide: string;
   bandeau: { actif: boolean; message: string };
-  /** Stops all online booking, e.g. during maintenance. */
 };

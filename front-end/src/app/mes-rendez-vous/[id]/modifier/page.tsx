@@ -32,8 +32,8 @@ async function Modifier({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const user = await requireClient();
-  const a = await getAppointment(id, user.id);
+  await requireClient();
+  const a = await getAppointment(id);
   if (!a) notFound();
   if (!isModifiable(a)) redirect(`/mes-rendez-vous/${id}?erreur=delai`);
 
@@ -43,7 +43,7 @@ async function Modifier({
     getWeekSlots(a.conciliateur.id, week),
     creneau ? getSlot(creneau) : null,
   ]);
-  const valid = chosen?.available && chosen.slot.conciliateurId === a.conciliateur.id ? chosen.slot : null;
+  const valid = chosen?.conciliateurId === a.conciliateur.id ? chosen : null;
   const href = (extra: Record<string, string | number | undefined>) =>
     withParams(`/mes-rendez-vous/${id}/modifier`, { semaine: week, ...extra });
 

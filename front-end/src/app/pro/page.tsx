@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { setPresenceAction, toggleReservationAction } from "@/app/actions/pro";
+import { markNotificationsReadAction, setPresenceAction } from "@/app/actions/pro";
 import { Container } from "@/components/layout";
 import { AppointmentRow, bandButton, ProBand, StatTile } from "@/components/pro";
-import { Alert, Button, Card, Icon } from "@/components/ui";
+import { Badge, Button, Card, Icon } from "@/components/ui";
 import { getDashboard } from "@/lib/api/pro";
-import { DOMAINES, MOTIF_AUTRE } from "@/lib/api/referentiel";
 import { requirePro } from "@/lib/auth/session";
-import { formatDay, formatShortDate, formatTime } from "@/lib/format";
+import { formatDateTime, formatDay, formatShortDate, formatTime } from "@/lib/format";
 
 export const metadata = { title: "Tableau de bord" };
 
@@ -53,19 +52,6 @@ async function Dashboard() {
       />
 
       <Container className="flex flex-col gap-6 py-8">
-        {!d.reservationOuverte && (
-          <Alert variant="warning" title="La prise de rendez-vous en ligne est en pause">
-            <p className="mt-1">Les justiciables voient votre fiche, mais ne peuvent pas réserver.</p>
-            <form action={toggleReservationAction} className="mt-3">
-              <input type="hidden" name="ouverte" value="1" />
-              <input type="hidden" name="retour" value="/pro" />
-              <Button type="submit" size="sm">
-                <Icon name="play" /> Rouvrir les réservations
-              </Button>
-            </form>
-          </Alert>
-        )}
-
         <section aria-label="Chiffres clés" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile href="/pro/agenda" icon="calendar" label="rendez-vous sur 7 jours" value={d.stats.semaine} />
           <StatTile href="#a-renseigner" icon="clock" label="à renseigner" value={d.stats.aRenseigner} highlight={d.stats.aRenseigner > 0} />
@@ -104,7 +90,7 @@ async function Dashboard() {
                       <Link href={`/pro/rendez-vous/${a.id}`} className="flex-1 hover:underline">
                         <span className="block text-lg font-semibold">{a.client.nom}</span>
                         <span className="block text-base text-muted-foreground">
-                          {formatShortDate(a.debut)} à {formatTime(a.debut)} · {a.motif === "autre" ? MOTIF_AUTRE.label : DOMAINES[a.motif].label}
+                          {formatShortDate(a.debut)} à {formatTime(a.debut)}{a.motif && ` · ${a.motif}`}
                         </span>
                       </Link>
                       <div className="flex gap-2">
@@ -126,6 +112,33 @@ async function Dashboard() {
             </Card>
           </div>
 
+          <div className="flex flex-col gap-6">
+          {d.notifications.length > 0 && (
+            <Card className="overflow-hidden">
+              <h2 className="flex items-center gap-2 border-b border-border px-5 py-4 text-xl">
+                Nouveautés <Badge variant="primary">{d.notifications.length}</Badge>
+              </h2>
+              <ul className="divide-y divide-border">
+                {d.notifications.map((n) => (
+                  <li key={n.id} className="px-5 py-3 text-base">
+                    {n.rendezVousId ? (
+                      <Link href={`/pro/rendez-vous/${n.rendezVousId}`} className="hover:underline">
+                        {n.message}
+                      </Link>
+                    ) : (
+                      n.message
+                    )}
+                    <span className="block text-sm text-muted-foreground">{formatDateTime(n.le)}</span>
+                  </li>
+                ))}
+              </ul>
+              <form action={markNotificationsReadAction} className="border-t border-border px-5 py-3">
+                <Button type="submit" variant="ghost" size="sm">
+                  <Icon name="check" /> Tout marquer comme lu
+                </Button>
+              </form>
+            </Card>
+          )}
           <Card className="overflow-hidden">
             <h2 className="border-b border-border px-5 py-4 text-xl">Prochains rendez-vous</h2>
             {d.prochains.length === 0 ? (
@@ -143,6 +156,7 @@ async function Dashboard() {
               Voir tout l&apos;agenda
             </Link>
           </Card>
+          </div>
         </div>
       </Container>
     </>

@@ -6,8 +6,9 @@ import {
   createAppointment,
   rescheduleAppointment as apiReschedule,
 } from "@/lib/api/appointments";
-import { DOMAINES, MODES } from "@/lib/api/referentiel";
-import { ApiError, type Domaine, type Mode } from "@/lib/api/types";
+import { DOMAINES, MOTIF_AUTRE } from "@/lib/api/referentiel";
+import { ApiError, type Domaine } from "@/lib/api/types";
+import { normalizePhone } from "@/lib/phone";
 import { requireClient } from "@/lib/auth/session";
 import { withParams } from "@/lib/search-params";
 
@@ -24,37 +25,42 @@ function errorCode(e: unknown) {
 }
 
 export async function bookAppointment(formData: FormData) {
-  const user = await requireClient();
+  await requireClient();
   const slotId = field(formData, "creneau");
-  const mode = field(formData, "mode") as Mode;
   const motif = field(formData, "motif") as Domaine | "autre";
-  if (!(mode in MODES) || !(motif in DOMAINES || motif === "autre")) {
+  if (!(motif in DOMAINES || motif === "autre")) {
     redirect(withParams("/rendez-vous/nouveau", { creneau: slotId }));
   }
+  const contact = { prenom: field(formData, "prenom"), nom: field(formData, "nom"), telephone: field(formData, "telephone") };
+  const precision = field(formData, "precision");
+  // The phone number is not put back in the URL (browser history): it is typed again.
+  const back = (erreur: string) =>
+    withParams("/rendez-vous/nouveau", { creneau: slotId, motif, etape: "recap", erreur, prenom: contact.prenom, nom: contact.nom, precision });
+
+  const phone = normalizePhone(contact.telephone);
+  if (!contact.prenom || !contact.nom || !phone) redirect(back("coordonnees"));
 
   let id: string;
   try {
-    ({ id } = await createAppointment(user, { slotId, mode, motif }));
+    ({ id } = await createAppointment({
+      slotId,
+      prenom: contact.prenom,
+      nom: contact.nom,
+      telephone: phone.replace(/(\d{2})(?=\d)/g, "$1 "),
+      motif: [motif === "autre" ? MOTIF_AUTRE.motif : DOMAINES[motif].motif, precision].filter(Boolean).join(" — "),
+    }));
   } catch (e) {
-    redirect(
-      withParams("/rendez-vous/nouveau", {
-        creneau: slotId,
-        motif,
-        mode,
-        etape: "recap",
-        erreur: errorCode(e),
-      }),
-    );
+    redirect(back(errorCode(e)));
   }
   redirect(`/mes-rendez-vous/${id}?confirme=1`);
 }
 
 export async function rescheduleAppointment(formData: FormData) {
-  const user = await requireClient();
+  await requireClient();
   const id = field(formData, "id");
   const slotId = field(formData, "creneau");
   try {
-    await apiReschedule(id, user.id, slotId);
+    await apiReschedule(id, slotId);
   } catch (e) {
     redirect(withParams(`/mes-rendez-vous/${id}/modifier`, { erreur: errorCode(e) }));
   }
@@ -62,10 +68,10 @@ export async function rescheduleAppointment(formData: FormData) {
 }
 
 export async function cancelAppointment(formData: FormData) {
-  const user = await requireClient();
+  await requireClient();
   const id = field(formData, "id");
   try {
-    await apiCancel(id, user.id, field(formData, "motif-annulation") || undefined);
+    await apiCancel(id);
   } catch (e) {
     redirect(withParams(`/mes-rendez-vous/${id}`, { erreur: errorCode(e) }));
   }

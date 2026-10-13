@@ -21,10 +21,10 @@ export default function AgendaPage({ searchParams }: PageProps<"/pro/agenda">) {
 
 async function Agenda({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const { conciliateurId } = await requirePro();
+  await requirePro();
   const n = Number(param(sp, "semaine"));
   const week = Number.isInteger(n) && Math.abs(n) <= 26 ? n : 0;
-  const { days } = await getAgenda(conciliateurId, week);
+  const { days } = await getAgenda(week);
   const today = dayKey(new Date().toISOString());
   const count = days.reduce((s, d) => s + d.appointments.filter((a) => a.statut !== "annule").length, 0);
 
@@ -39,7 +39,7 @@ async function Agenda({ searchParams }: { searchParams: Promise<SearchParams> })
               <Icon name="sliders" className="size-5" /> Mes horaires
             </Link>
             <Link href="/pro/parametres/absences" className={bandButton}>
-              <Icon name="calendar" className="size-5" /> Ajouter une absence
+              <Icon name="calendar" className="size-5" /> Fermer des jours
             </Link>
           </>
         }
@@ -67,13 +67,17 @@ async function Agenda({ searchParams }: { searchParams: Promise<SearchParams> })
 
         {days.map((d) => {
           const isToday = dayKey(d.date) === today;
-          if (new Date(d.date).getDay() === 0 && d.appointments.length === 0) return null;
+          if (new Date(d.date).getDay() === 0 && d.appointments.length === 0 && d.libres === 0) return null;
           return (
             <Card key={d.date} className={cn("overflow-hidden", isToday && "border-2 border-primary")}>
               <h2 className="flex flex-wrap items-center gap-3 border-b border-border bg-[#f9fafc] px-5 py-3 text-lg">
                 {formatDay(d.date, { capital: true })}
                 {isToday && <Badge variant="default">Aujourd&apos;hui</Badge>}
-                {d.absence && <Badge variant="warning">Absent : {d.absence.motif}</Badge>}
+                {d.libres > 0 && (
+                  <Badge variant="secondary">
+                    {d.libres} horaire{d.libres > 1 ? "s" : ""} libre{d.libres > 1 ? "s" : ""}
+                  </Badge>
+                )}
               </h2>
               {d.appointments.length === 0 ? (
                 <p className="px-5 py-4 text-base text-muted-foreground">Aucun rendez-vous.</p>

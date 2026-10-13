@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { createCallbackRequest } from "@/lib/api/callbacks";
-import { conciliateurById } from "@/lib/api/store";
 import { DOMAINES, MOMENTS, type Moment } from "@/lib/api/referentiel";
 import type { Domaine } from "@/lib/api/types";
 import { normalizePhone } from "@/lib/phone";
@@ -34,7 +33,7 @@ export async function requestCallback(_prev: CallbackState, formData: FormData):
     telephone: phone!,
     moment: (values.moment in MOMENTS ? values.moment : "indifferent") as Moment,
     motif: values.motif in DOMAINES ? (values.motif as Domaine) : undefined,
-    conciliateurId: conciliateurById(conciliateur) ? conciliateur : undefined,
+    conciliateurId: /^\d+$/.test(conciliateur) ? conciliateur : undefined,
     userId: user?.id,
   });
   redirect(`/etre-rappele/merci?moment=${values.moment}`);

@@ -1,9 +1,23 @@
-import { contactOf, finOf } from "./appointments";
+import { type ApiConciliateur, toConciliateur } from "./conciliateurs";
+import { apiOrNull } from "./http";
 import { fakeLatency } from "./latency";
-import { db, platform, type DossierRecord, type SeanceRecord } from "./store";
-import { ApiError, type Dossier, type Seance } from "./types";
+import { db, DEMO_OWNER, platform, type DossierRecord, type SeanceRecord } from "./store";
+import { ApiError, type ConciliateurContact, type Dossier, type Seance } from "./types";
 
-// Fake backend: swap these functions for `fetch` calls to the real API.
+// Demo backend: the API has no conciliation cases yet. Swap these functions for
+// `fetch` calls when it does.
+
+export function finOf(r: { debut: string; dureeMinutes: number }) {
+  return new Date(new Date(r.debut).getTime() + r.dureeMinutes * 60_000).toISOString();
+}
+
+/** The case's conciliateur, from the API directory. */
+async function contactOf(conciliateurId: string): Promise<ConciliateurContact> {
+  const c = conciliateurId === DEMO_OWNER ? null : await apiOrNull<ApiConciliateur>(`conciliateurs/${conciliateurId}`);
+  if (!c) return { id: conciliateurId, nom: "Votre conciliateur", ville: "" };
+  const { id, nom, ville } = toConciliateur(c);
+  return { id, nom, ville };
+}
 
 /** The demo code a conciliateur would hand to the client, on paper or by letter. */
 export const DEMO_DOSSIER_CODE = "CJ-4821-KQ";
@@ -20,11 +34,11 @@ export function toSeance(s: SeanceRecord): Seance {
   };
 }
 
-function toDossier(r: DossierRecord): Dossier {
+async function toDossier(r: DossierRecord): Promise<Dossier> {
   return {
     id: r.id,
     reference: r.reference,
-    conciliateur: contactOf(r.conciliateurId),
+    conciliateur: await contactOf(r.conciliateurId),
     objet: r.objet,
     statut: r.statut,
     seances: r.seances.map(toSeance).sort((a, b) => a.debut.localeCompare(b.debut)),
@@ -64,7 +78,7 @@ export async function joinDossier(userId: string, code: string) {
 /** GET /me/dossiers */
 export async function listMyDossiers(userId: string) {
   await fakeLatency(200);
-  return db().dossiers.filter((r) => isMember(r, userId)).map(toDossier);
+  return Promise.all(db().dossiers.filter((r) => isMember(r, userId)).map(toDossier));
 }
 
 /** GET /dossiers/:id */

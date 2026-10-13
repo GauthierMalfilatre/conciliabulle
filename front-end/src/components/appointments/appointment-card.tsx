@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ConciliateurAvatar, MODE_ICONS } from "@/components/conciliateurs";
+import { ConciliateurAvatar } from "@/components/conciliateurs";
 import { Badge, Card, Icon } from "@/components/ui";
-import { MODES } from "@/lib/api/referentiel";
 import type { Appointment, AppointmentStatus } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDay, formatTime } from "@/lib/format";
@@ -40,8 +39,8 @@ export function AppointmentCard({ appointment: a }: { appointment: Appointment }
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="text-lg font-bold">{a.conciliateur.nom}</p>
             <p className="flex items-center gap-1.5 text-base text-muted-foreground">
-              <Icon name={MODE_ICONS[a.mode]} />
-              {a.mode === "sur_place" ? `${a.conciliateur.lieu}, ${a.conciliateur.adresse}` : MODES[a.mode].label}
+              <Icon name="mapPin" />
+              {a.lieu}
             </p>
           </div>
           <Icon name="chevronRight" className="size-6 shrink-0 text-primary" />

@@ -2,23 +2,22 @@
 
 import { redirect } from "next/navigation";
 import {
-  addAbsence,
   addSeance,
-  cancelByConciliateur,
   closeDossier,
+  closePeriod,
+  markNotificationsRead,
   markRappelTraite,
   moveSeance,
   openDossier,
-  removeAbsence,
+  renewCalendarLink,
   saveNote,
   saveParametres,
   saveProfil,
   setPresence,
-  setReservationOuverte,
 } from "@/lib/api/pro";
-import { DELAIS_MIN_HEURES, DOMAINES, HORIZONS_SEMAINES, MODES } from "@/lib/api/referentiel";
+import { DOMAINES, MODES } from "@/lib/api/referentiel";
 import { platform } from "@/lib/api/store";
-import { ApiError, type Domaine, type Horaires, type Mode, type Parametres, type Weekday } from "@/lib/api/types";
+import { ApiError, type Domaine, type Horaires, type Mode, type Weekday } from "@/lib/api/types";
 import { requirePro, safeNext } from "@/lib/auth/session";
 import { withParams } from "@/lib/search-params";
 
@@ -26,8 +25,6 @@ import { withParams } from "@/lib/search-params";
 // them touch their own data. Outcomes are reported through the URL.
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
-const oneOf = <T extends number>(values: readonly T[], raw: string, fallback: T) =>
-  (values.find((v) => String(v) === raw) ?? fallback) as T;
 
 function fail(e: unknown, url: string, params: Record<string, string> = {}): never {
   if (!(e instanceof ApiError)) throw e;
@@ -37,43 +34,38 @@ function fail(e: unknown, url: string, params: Record<string, string> = {}): nev
 // --- Appointments ------------------------------------------------------------
 
 export async function setPresenceAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
+  await requirePro();
   const id = text(fd, "id");
   const back = safeNext(text(fd, "retour") || `/pro/rendez-vous/${id}`);
   try {
-    await setPresence(conciliateurId, id, text(fd, "presence") === "absent" ? "absent" : "honore");
+    await setPresence(id, text(fd, "presence") === "absent" ? "absent" : "honore");
   } catch (e) {
     fail(e, back);
   }
   redirect(withParams(back, { presence: "1" }));
 }
 
-export async function cancelByConciliateurAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
-  const id = text(fd, "id");
-  try {
-    await cancelByConciliateur(conciliateurId, id, text(fd, "message"));
-  } catch (e) {
-    fail(e, `/pro/rendez-vous/${id}`);
-  }
-  redirect(`/pro/rendez-vous/${id}?annule=1`);
-}
-
 export async function saveNoteAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
+  await requirePro();
   const id = text(fd, "id");
   try {
-    await saveNote(conciliateurId, id, text(fd, "note"));
+    await saveNote(id, text(fd, "note"));
   } catch (e) {
     fail(e, `/pro/rendez-vous/${id}`);
   }
   redirect(`/pro/rendez-vous/${id}?note=1`);
 }
 
+export async function markNotificationsReadAction() {
+  await requirePro();
+  await markNotificationsRead();
+  redirect("/pro?lu=1");
+}
+
 // --- Settings ----------------------------------------------------------------
 
 export async function saveParametresAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
+  await requirePro();
   const plage = (d: Weekday, part: "matin" | "apres") => ({
     actif: fd.get(`j${d}-${part}-actif`) === "on",
     debut: text(fd, `j${d}-${part}-debut`) || (part === "matin" ? "09:00" : "14:00"),
@@ -81,66 +73,48 @@ export async function saveParametresAction(fd: FormData) {
   });
   const horaires = {} as Horaires;
   for (const d of [1, 2, 3, 4, 5, 6] as Weekday[]) horaires[d] = { matin: plage(d, "matin"), apresMidi: plage(d, "apres") };
-  const input: Pick<Parametres, "horaires" | "dureeMinutes" | "delaiMinHeures" | "horizonSemaines"> = {
-    horaires,
-    dureeMinutes: Number(text(fd, "duree")) || platform().dureesRdvAutorisees[0],
-    delaiMinHeures: oneOf(DELAIS_MIN_HEURES, text(fd, "delai"), 24),
-    horizonSemaines: oneOf(HORIZONS_SEMAINES, text(fd, "horizon"), 4),
-  };
   try {
-    await saveParametres(conciliateurId, input);
+    await saveParametres({
+      horaires,
+      dureeMinutes: Number(text(fd, "duree")) || platform().dureesRdvAutorisees[0],
+      lieu: text(fd, "lieu"),
+    });
   } catch (e) {
     fail(e, "/pro/parametres");
   }
   redirect("/pro/parametres?enregistre=1");
 }
 
-export async function toggleReservationAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
-  const ouverte = text(fd, "ouverte") === "1";
-  await setReservationOuverte(conciliateurId, ouverte);
-  redirect(withParams(safeNext(text(fd, "retour") || "/pro/parametres"), { reservation: ouverte ? "ouverte" : "pause" }));
-}
-
-export async function addAbsenceAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
+export async function closePeriodAction(fd: FormData) {
+  await requirePro();
+  let result: Awaited<ReturnType<typeof closePeriod>>;
   try {
-    await addAbsence(conciliateurId, {
-      du: text(fd, "du"),
-      au: text(fd, "au") || text(fd, "du"),
-      motif: text(fd, "motif") || "Absence",
-    });
+    result = await closePeriod(text(fd, "du"), text(fd, "au") || text(fd, "du"));
   } catch (e) {
     fail(e, "/pro/parametres/absences");
   }
-  redirect("/pro/parametres/absences?ajoute=1");
-}
-
-export async function removeAbsenceAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
-  await removeAbsence(conciliateurId, text(fd, "id"));
-  redirect("/pro/parametres/absences?supprime=1");
+  redirect(withParams("/pro/parametres/absences", { retires: result.retires, reserves: result.reserves }));
 }
 
 export async function saveProfilAction(fd: FormData) {
-  const { conciliateurId } = await requirePro();
-  const domaines = fd.getAll("domaines").map(String).filter((d): d is Domaine => d in DOMAINES);
-  const modes = fd.getAll("modes").map(String).filter((m): m is Mode => m in MODES);
+  await requirePro();
   try {
-    await saveProfil(conciliateurId, {
-      lieu: text(fd, "lieu"),
-      adresse: text(fd, "adresse"),
-      telephone: text(fd, "telephone"),
+    await saveProfil({
+      ville: text(fd, "ville"),
+      departement: text(fd, "departement"),
       presentation: text(fd, "presentation"),
-      langues: ["Français", ...text(fd, "langues").split(",").map((l) => l.trim()).filter((l) => l && l.toLowerCase() !== "français")],
-      accesPMR: fd.get("accesPMR") === "on",
-      domaines,
-      modes,
+      instructions: text(fd, "instructions"),
     });
   } catch (e) {
     fail(e, "/pro/parametres/profil");
   }
   redirect("/pro/parametres/profil?enregistre=1");
+}
+
+export async function renewCalendarLinkAction() {
+  await requirePro();
+  await renewCalendarLink();
+  redirect("/pro/parametres/profil?agenda=1#agenda");
 }
 
 // --- Requests ----------------------------------------------------------------

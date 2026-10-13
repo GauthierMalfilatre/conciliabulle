@@ -13,13 +13,19 @@ const BY_MODE: Record<Mode, string> = {
   visio: "Le lien de connexion arrive par email la veille",
 };
 
-/** What to bring or prepare, in plain words. */
-export function Checklist({ mode }: { mode: Mode }) {
+/** What to bring or prepare, in plain words, starting with the conciliateur's own instructions. */
+export function Checklist({ mode, instructions }: { mode: Mode; instructions?: string }) {
   return (
     <section className="rounded-xl border border-border bg-card p-6" aria-labelledby="a-preparer">
       <h2 id="a-preparer" className="text-xl font-semibold">
         À préparer
       </h2>
+      {instructions && (
+        <p className="mt-3 rounded-lg bg-secondary p-4 text-base">
+          <span className="font-semibold">Consigne du conciliateur : </span>
+          {instructions}
+        </p>
+      )}
       <ul className="mt-4 flex flex-col gap-3 text-base">
         {[...COMMON, BY_MODE[mode]].map((item) => (
           <li key={item} className="flex gap-3">

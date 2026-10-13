@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { addAbsenceAction, removeAbsenceAction } from "@/app/actions/pro";
+import { closePeriodAction } from "@/app/actions/pro";
 import { Container } from "@/components/layout";
 import { ProBand, SettingsTabs } from "@/components/pro";
 import { Alert, Button, Card, Field, Icon, Input } from "@/components/ui";
-import { conflicts, getParametres } from "@/lib/api/pro";
+import { nextOpenDays } from "@/lib/api/pro";
+import { ymd } from "@/lib/api/schedule";
 import { requirePro } from "@/lib/auth/session";
-import { formatShortDate, formatTime } from "@/lib/format";
+import { formatDay } from "@/lib/format";
 import { param, type SearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "Mes absences" };
@@ -26,88 +27,70 @@ export default function AbsencesPage({ searchParams }: PageProps<"/pro/parametre
   );
 }
 
-const longDate = (ymd: string) => formatShortDate(`${ymd}T12:00:00`);
-
 async function Absences({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const { conciliateurId } = await requirePro();
-  const p = await getParametres(conciliateurId);
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = p.absences.filter((a) => a.au >= today);
+  await requirePro();
+  const jours = await nextOpenDays();
+  const today = ymd(new Date());
+  const retires = param(sp, "retires");
+  const reserves = Number(param(sp, "reserves")) || 0;
 
   return (
     <>
-      {param(sp, "ajoute") && <Alert variant="success" title="Absence ajoutée">Ces jours ne sont plus proposés en ligne.</Alert>}
-      {param(sp, "supprime") && <Alert variant="info" title="Absence supprimée" />}
+      {retires !== undefined && (
+        <Alert variant="success" title={`${retires} horaire${Number(retires) > 1 ? "s" : ""} retiré${Number(retires) > 1 ? "s" : ""} de la réservation en ligne`}>
+          Ces jours ne sont plus proposés aux justiciables.
+        </Alert>
+      )}
+      {reserves > 0 && (
+        <Alert variant="warning" title={`${reserves} rendez-vous déjà pris pendant cette période`}>
+          <p className="mt-1">
+            Ils sont conservés. Appelez les personnes pour les prévenir :{" "}
+            <Link href="/pro/agenda" className="font-semibold underline">
+              voir l&apos;agenda
+            </Link>
+            .
+          </p>
+        </Alert>
+      )}
       {param(sp, "erreur") && <Alert variant="destructive" title={param(sp, "erreur")!} />}
 
       <Card className="p-6">
-        <h2 className="text-2xl">Ajouter une absence</h2>
+        <h2 className="text-2xl">Fermer des jours</h2>
         <p className="mt-1 text-base text-muted-foreground">
-          Congés, formation, maladie : aucun créneau ne sera proposé ces jours-là.
+          Congés, formation, maladie : les horaires libres de ces jours sont retirés. Pour les rouvrir plus tard,
+          ajoutez une permanence dans l&apos;onglet Horaires.
         </p>
-        <form action={addAbsenceAction} className="mt-5 grid gap-4 sm:grid-cols-2">
+        <form action={closePeriodAction} className="mt-5 grid gap-4 sm:grid-cols-2">
           <Field id="du" label="Du">
             <Input id="du" name="du" type="date" min={today} required />
           </Field>
           <Field id="au" label="Au (inclus)">
             <Input id="au" name="au" type="date" min={today} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field id="motif" label="Motif (visible par vous seul)">
-              <Input id="motif" name="motif" list="motifs" placeholder="Ex. : Congés" />
-            </Field>
-            <datalist id="motifs">
-              <option value="Congés" />
-              <option value="Formation" />
-              <option value="Maladie" />
-            </datalist>
-          </div>
           <Button type="submit" size="lg" className="sm:col-span-2 sm:justify-self-start">
-            <Icon name="plus" className="size-5" /> Ajouter
+            <Icon name="x" className="size-5" /> Fermer ces jours
           </Button>
         </form>
       </Card>
 
-      <section className="flex flex-col gap-3" aria-labelledby="absences">
-        <h2 id="absences" className="text-2xl">Absences prévues</h2>
-        {upcoming.length === 0 ? (
-          <Card className="p-6 text-base text-muted-foreground">Aucune absence prévue.</Card>
+      <section className="flex flex-col gap-3" aria-labelledby="ouverts">
+        <h2 id="ouverts" className="text-2xl">Prochains jours ouverts à la réservation</h2>
+        {jours.length === 0 ? (
+          <Card className="p-6 text-base text-muted-foreground">Aucun horaire libre en ligne.</Card>
         ) : (
-          upcoming.map((a) => {
-            const clash = conflicts(conciliateurId, a).filter((r) => r.statut === "a_venir");
-            return (
-              <Card key={a.id} className="flex flex-col gap-3 p-5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Icon name="calendar" className="size-6 text-primary" />
-                  <p className="flex-1 text-lg">
-                    <strong>{a.du === a.au ? `Le ${longDate(a.du)}` : `Du ${longDate(a.du)} au ${longDate(a.au)}`}</strong>
-                    <span className="text-muted-foreground"> · {a.motif}</span>
-                  </p>
-                  <form action={removeAbsenceAction}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <Button type="submit" variant="ghost" size="sm" aria-label={`Supprimer l'absence : ${a.motif}`}>
-                      <Icon name="trash" /> Supprimer
-                    </Button>
-                  </form>
-                </div>
-                {clash.length > 0 && (
-                  <Alert variant="warning" title={`${clash.length} rendez-vous déjà pris pendant cette absence`}>
-                    <p className="mt-1">Annulez-les ou prévenez les personnes :</p>
-                    <ul className="mt-2 flex flex-col gap-1">
-                      {clash.map((r) => (
-                        <li key={r.id}>
-                          <Link href={`/pro/rendez-vous/${r.id}`} className="font-semibold underline">
-                            {r.client.nom}, {formatShortDate(r.debut)} à {formatTime(r.debut)}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </Alert>
-                )}
-              </Card>
-            );
-          })
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-border">
+              {jours.map((j) => (
+                <li key={j.date} className="flex flex-wrap items-center gap-x-3 px-5 py-3 text-base">
+                  <span className="font-semibold">{formatDay(j.date, { capital: true })}</span>
+                  <span className="text-muted-foreground">
+                    {j.premier.replace(":", " h ")} – {j.dernier.replace(":", " h ")} · {j.libres} horaire{j.libres > 1 ? "s" : ""} libre{j.libres > 1 ? "s" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
     </>

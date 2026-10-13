@@ -68,6 +68,12 @@ class ListingTests(TestCase):
     def test_anonymous_refused(self):
         self.assertEqual(APIClient().get("/api/v1/conciliateurs").status_code, 401)
 
+    def test_detail_only_for_visible(self):
+        r = self.user.get(f"/api/v1/conciliateurs/{self.visible.id}")
+        self.assertEqual((r.status_code, r.json()["id"], r.json()["city"]), (200, self.visible.id, "Lyon"))
+        self.assertEqual(self.user.get(f"/api/v1/conciliateurs/{self.hidden.id}").status_code, 404)
+        self.assertEqual(APIClient().get(f"/api/v1/conciliateurs/{self.visible.id}").status_code, 401)
+
 
 class SearchTests(TestCase):
     def setUp(self):
@@ -231,6 +237,7 @@ class ProfileTests(TestCase):
         api = client_for(c.user)
         r = api.patch("/api/v1/me/profile", {"bio": "Ancien magistrat", "is_verified": False, "department": "13"}, format="json")
         self.assertEqual((r.status_code, r.json()["bio"], r.json()["department"]), (200, "Ancien magistrat", "13"))
+        self.assertEqual(r.json()["id"], c.id)  # links to the public page GET conciliateurs/{id}
         c.refresh_from_db()
         self.assertTrue(c.is_verified)  # read-only
 

@@ -6,6 +6,7 @@ import { MODE_ICONS } from "@/components/conciliateurs";
 import { Alert, Badge, buttonClasses, Card, Icon } from "@/components/ui";
 import { getDossier } from "@/lib/api/dossiers";
 import { DOMAINES, MODES } from "@/lib/api/referentiel";
+import { getPlatformSettings } from "@/lib/api/reglages";
 import { requireClient } from "@/lib/auth/session";
 import { cn } from "@/lib/cn";
 import { dateBlock, formatDay, formatTime } from "@/lib/format";
@@ -33,9 +34,9 @@ async function Detail({
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const user = await requireClient();
-  const d = await getDossier(id, user.id);
+  const [d, settings] = await Promise.all([getDossier(id, user.id), getPlatformSettings()]);
   if (!d) notFound();
-  const tel = d.conciliateur.telephone;
+  const tel = d.conciliateur.telephone ?? settings.numeroAide;
 
   return (
     <>
@@ -111,7 +112,7 @@ async function Detail({
                       </p>
                       <p className="flex items-center gap-1.5 text-base text-muted-foreground">
                         <Icon name={MODE_ICONS[s.mode]} />
-                        {s.mode === "sur_place" ? `${d.conciliateur.lieu}, ${d.conciliateur.adresse}` : MODES[s.mode].label}
+                        {s.mode === "sur_place" ? `Sur place, à ${d.conciliateur.ville || "la permanence"}` : MODES[s.mode].label}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {!prevue && <Badge variant="secondary">Passée</Badge>}

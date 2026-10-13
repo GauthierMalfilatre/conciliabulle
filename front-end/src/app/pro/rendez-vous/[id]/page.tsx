@@ -3,15 +3,13 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { saveNoteAction, setPresenceAction } from "@/app/actions/pro";
 import { Summary, SummaryRow } from "@/components/booking";
-import { MODE_ICONS } from "@/components/conciliateurs";
 import { BackLink, Container } from "@/components/layout";
 import { AppointmentStatusBadge } from "@/components/pro";
 import { Alert, Button, buttonClasses, Card, Field, Icon, Textarea } from "@/components/ui";
-import { getProAppointment, getProfil } from "@/lib/api/pro";
-import { MODES, motifLabel } from "@/lib/api/referentiel";
+import { getProAppointment } from "@/lib/api/pro";
 import { requirePro } from "@/lib/auth/session";
 import { cn } from "@/lib/cn";
-import { formatDateTime, formatDay, formatTime } from "@/lib/format";
+import { formatDay, formatTime } from "@/lib/format";
 import { param, type SearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "Rendez-vous" };
@@ -29,15 +27,14 @@ export default function ProRendezVousPage({ params, searchParams }: PageProps<"/
 
 async function Detail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const { conciliateurId } = await requirePro();
-  const [a, profil] = await Promise.all([getProAppointment(conciliateurId, id), getProfil(conciliateurId)]);
-  if (!a || !profil) notFound();
+  await requirePro();
+  const a = await getProAppointment(id);
+  if (!a) notFound();
   const tel = a.client.telephone;
   const started = a.statut !== "a_venir";
 
   return (
     <>
-      {param(sp, "annule") && <Alert variant="info" title="Rendez-vous annulé">Le justiciable est prévenu par SMS.</Alert>}
       {param(sp, "note") && <Alert variant="success" title="Note enregistrée" />}
       {param(sp, "presence") && <Alert variant="success" title="Présence enregistrée" />}
       {param(sp, "erreur") && <Alert variant="destructive" title={param(sp, "erreur")!} />}
@@ -58,28 +55,19 @@ async function Detail({ params, searchParams }: { params: Promise<{ id: string }
               </a>
             </SummaryRow>
             <SummaryRow icon="message" label="Motif">
-              {motifLabel(a.motif)}
+              {a.motif || "Non précisé"}
             </SummaryRow>
-            <SummaryRow icon={MODE_ICONS[a.mode]} label="Type de rendez-vous">
-              {MODES[a.mode].label}
-              {a.mode === "sur_place" && <span className="block font-normal">{profil.lieu}, {profil.adresse}</span>}
-              {a.mode === "telephone" && <span className="block font-normal">Vous appelez le justiciable au {tel}</span>}
+            <SummaryRow icon="mapPin" label="Lieu">
+              {a.lieu}
             </SummaryRow>
             <SummaryRow icon="clock" label="Durée">
               De {formatTime(a.debut)} à {formatTime(a.fin)}
-            </SummaryRow>
-            <SummaryRow icon="calendar" label="Réservé en ligne">
-              {formatDateTime(a.creeLe)}
             </SummaryRow>
           </Summary>
         </div>
       </Card>
 
-      {a.annulation && (
-        <Alert variant="info" title={a.annulation.par === "client" ? "Annulé par le justiciable" : "Annulé par vous"}>
-          {a.annulation.message ? `« ${a.annulation.message} »` : "Aucun motif indiqué."}
-        </Alert>
-      )}
+      {a.statut === "annule" && <Alert variant="info" title="Annulé par le justiciable" />}
 
       {a.statut !== "annule" && started && (
         <Card className="flex flex-col gap-4 p-6">
@@ -139,9 +127,9 @@ async function Detail({ params, searchParams }: { params: Promise<{ id: string }
       </Card>
 
       {a.statut === "a_venir" && (
-        <Link href={`/pro/rendez-vous/${a.id}/annuler`} className={buttonClasses({ variant: "destructive-outline", size: "lg" })}>
-          <Icon name="x" className="size-5" /> Annuler ce rendez-vous
-        </Link>
+        <p className="text-base text-muted-foreground">
+          Pour annuler ou déplacer ce rendez-vous, appelez la personne : elle peut le faire en ligne jusqu&apos;à 24 heures avant.
+        </p>
       )}
     </>
   );

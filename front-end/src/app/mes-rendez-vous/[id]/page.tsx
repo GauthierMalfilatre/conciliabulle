@@ -4,11 +4,10 @@ import { Suspense } from "react";
 import { Checklist, PrintButton, STATUT_BADGE } from "@/components/appointments";
 import { Summary, SummaryRow } from "@/components/booking";
 import { BackLink, Container } from "@/components/layout";
-import { MODE_ICONS } from "@/components/conciliateurs";
 import { Alert, Badge, buttonClasses, Card, Icon } from "@/components/ui";
 import { getPlatformSettings } from "@/lib/api/reglages";
 import { getAppointment, isModifiable } from "@/lib/api/appointments";
-import { DOMAINES, MODES, MOTIF_AUTRE, rappelsTexte } from "@/lib/api/referentiel";
+import { DELAI_MODIFICATION_HEURES, rappelsTexte } from "@/lib/api/referentiel";
 import { requireClient } from "@/lib/auth/session";
 import { formatDateTime, formatDay, formatTime } from "@/lib/format";
 import { param, type SearchParams } from "@/lib/search-params";
@@ -36,19 +35,21 @@ async function Detail({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const user = await requireClient();
-  const [a, settings] = await Promise.all([getAppointment(id, user.id), getPlatformSettings()]);
+  await requireClient();
+  const [a, settings] = await Promise.all([getAppointment(id), getPlatformSettings()]);
   if (!a) notFound();
 
   const badge = STATUT_BADGE[a.statut];
   const modifiable = isModifiable(a);
-  const tel = a.conciliateur.telephone;
+  // The API does not give the conciliateur's number yet: the help line takes the call.
+  const tel = a.conciliateur.telephone ?? settings.numeroAide;
+  const qui = a.conciliateur.telephone ? "le conciliateur" : "le service d'aide";
 
   return (
     <>
       {param(sp, "confirme") && (
         <Alert variant="success" title="Votre rendez-vous est confirmé">
-          Un SMS de confirmation vous a été envoyé. {rappelsTexte(settings)}
+          Le conciliateur est prévenu. {rappelsTexte(settings)}
         </Alert>
       )}
       {param(sp, "modifie") && (
@@ -63,19 +64,9 @@ async function Detail({
           </Link>
         </Alert>
       )}
-      {a.annulation?.par === "conciliateur" && (
-        <Alert variant="warning" title="Le conciliateur a dû annuler ce rendez-vous">
-          {a.annulation.message && <p className="mt-1">« {a.annulation.message} »</p>}
-          <p className="mt-1">
-            <Link href={`/conciliateurs/${a.conciliateur.id}`} className="font-semibold underline">
-              Choisir un nouvel horaire
-            </Link>
-          </p>
-        </Alert>
-      )}
       {param(sp, "erreur") === "delai" && a.statut === "confirme" && (
         <Alert variant="warning" title="Ce rendez-vous ne peut plus être modifié en ligne">
-          Appelez le conciliateur au {tel}.
+          Appelez {qui} au {tel}.
         </Alert>
       )}
 
@@ -104,21 +95,16 @@ async function Detail({
               {a.conciliateur.nom}
             </Link>
           </SummaryRow>
-          <SummaryRow icon={MODE_ICONS[a.mode]} label="Type de rendez-vous">
-            {MODES[a.mode].label}
-            {a.mode === "sur_place" && (
-              <span className="block font-normal">
-                {a.conciliateur.lieu}, {a.conciliateur.adresse}
-              </span>
-            )}
-            {a.mode === "telephone" && (
-              <span className="block font-normal">Le conciliateur vous appellera au {user.telephone}</span>
-            )}
+          <SummaryRow icon="mapPin" label="Lieu">
+            {a.lieu}
           </SummaryRow>
           <SummaryRow icon="message" label="Motif">
-            {a.motif === "autre" ? MOTIF_AUTRE.motif : DOMAINES[a.motif].motif}
+            {a.motif || "Non précisé"}
           </SummaryRow>
-          <SummaryRow icon="phone" label="Contacter le conciliateur">
+          <SummaryRow icon="users" label="Vos coordonnées">
+            {a.contact.prenom} {a.contact.nom} · {a.contact.telephone}
+          </SummaryRow>
+          <SummaryRow icon="phone" label={a.conciliateur.telephone ? "Contacter le conciliateur" : "Une question ? Le service d'aide"}>
             <a href={`tel:${tel.replaceAll(" ", "")}`} className="hover:underline">
               {tel}
             </a>
@@ -127,7 +113,7 @@ async function Detail({
         </div>
       </Card>
 
-      {a.statut === "confirme" && <Checklist mode={a.mode} />}
+      {a.statut === "confirme" && <Checklist mode={a.mode} instructions={a.instructions} />}
 
       {a.statut === "confirme" && (
         <div className="flex flex-col gap-4 print:hidden">
@@ -153,8 +139,8 @@ async function Detail({
               </Link>
             </div>
           ) : (
-            <Alert variant="warning" title={`Le rendez-vous a lieu dans moins de ${settings.delaiModificationHeures} heures`}>
-              Pour le changer ou l&apos;annuler, appelez le conciliateur au{" "}
+            <Alert variant="warning" title={`Le rendez-vous a lieu dans moins de ${DELAI_MODIFICATION_HEURES} heures`}>
+              Pour le changer ou l&apos;annuler, appelez {qui} au{" "}
               <a href={`tel:${tel.replaceAll(" ", "")}`} className="font-semibold underline">
                 {tel}
               </a>

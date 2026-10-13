@@ -29,7 +29,7 @@ export default function ProDossierPage({ params, searchParams }: PageProps<"/pro
 async function Detail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const { conciliateurId } = await requirePro();
-  const [d, profil] = await Promise.all([getProDossier(conciliateurId, id), getProfil(conciliateurId)]);
+  const [d, profil] = await Promise.all([getProDossier(conciliateurId, id), getProfil()]);
   if (!d || !profil) notFound();
   const enCours = d.statut === "en_cours";
   const today = dayKey(new Date().toISOString());
@@ -94,7 +94,7 @@ async function Detail({ params, searchParams }: { params: Promise<{ id: string }
                 <p className="flex-1 text-lg">
                   <strong>{formatDateTime(s.debut, { capital: true })}</strong>
                   <span className="block text-base text-muted-foreground">
-                    {s.mode === "sur_place" ? `${profil.lieu}, ${profil.adresse}` : MODES[s.mode].label}
+                    {s.mode === "sur_place" ? `Sur place, ${profil.ville}` : MODES[s.mode].label}
                   </span>
                 </p>
                 {s.statut === "passee" ? <Badge variant="secondary">Passée</Badge> : pending && <Badge variant="warning">Changement demandé</Badge>}

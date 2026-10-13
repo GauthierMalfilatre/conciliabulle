@@ -1,38 +1,51 @@
-import { getSlot } from "./conciliateurs";
-import { fakeLatency } from "./latency";
-import { conciliateurById, db, newId, parametres, platform, type AppointmentRecord } from "./store";
-import { ApiError, type Appointment, type ConciliateurContact, type Mode, type Motif } from "./types";
+import { listConciliateurs, parseSlotId, type ApiSlot } from "./conciliateurs";
+import { api, apiOrNull } from "./http";
+import { DELAI_MODIFICATION_HEURES } from "./referentiel";
+import { platform } from "./store";
+import { ApiError, type Appointment, type ConciliateurContact } from "./types";
 
-// Fake backend: swap these functions for `fetch` calls to the real API.
+// GET/POST appointments, GET/PATCH/DELETE appointments/{id} (justiciable side).
 
-/** Online changes are refused less than this long before the appointment (platform setting). */
-export function delaiModificationHeures() {
-  return platform().delaiModificationHeures;
+export type ApiAppointment = {
+  id: number;
+  slot: ApiSlot;
+  conciliateur_id: number;
+  status: "BOOKED" | "CANCELLED";
+  first_name: string;
+  last_name: string;
+  phone: string;
+  motive: string;
+  instructions: string;
+};
+
+export function isPast(a: { fin: string }) {
+  return new Date(a.fin).getTime() < Date.now();
 }
 
-export function contactOf(conciliateurId: string): ConciliateurContact {
-  const c = conciliateurById(conciliateurId)!;
-  return { id: c.id, nom: c.nom, ville: c.ville, lieu: c.lieu, adresse: c.adresse, telephone: c.telephone };
+/** Directory entries by id, to name the conciliateur of each appointment. */
+async function contacts(): Promise<Map<string, ConciliateurContact>> {
+  const list = await listConciliateurs();
+  return new Map(list.map((c) => [c.id, { id: c.id, nom: c.nom, ville: c.ville, telephone: c.telephone }]));
 }
 
-export function finOf(r: { debut: string; dureeMinutes: number }) {
-  return new Date(new Date(r.debut).getTime() + r.dureeMinutes * 60_000).toISOString();
-}
-
-function toAppointment(r: AppointmentRecord): Appointment {
-  const fin = finOf(r);
-  const limite = new Date(r.debut).getTime() - delaiModificationHeures() * 3_600_000;
+function toAppointment(a: ApiAppointment, directory: Map<string, ConciliateurContact>): Appointment {
+  const conciliateurId = String(a.conciliateur_id);
+  const fin = a.slot.end;
+  const limite = new Date(a.slot.start).getTime() - DELAI_MODIFICATION_HEURES * 3_600_000;
   return {
-    id: r.id,
-    conciliateur: contactOf(r.conciliateurId),
-    slotId: r.slotId,
-    debut: r.debut,
+    id: String(a.id),
+    // A conciliateur who left the directory keeps their past appointments.
+    conciliateur: directory.get(conciliateurId) ?? { id: conciliateurId, nom: "Votre conciliateur", ville: "" },
+    slotId: `${conciliateurId}.${a.slot.id}`,
+    debut: a.slot.start,
     fin,
-    mode: r.mode,
-    motif: r.motif,
-    statut: r.annulation ? "annule" : new Date(fin).getTime() < Date.now() ? "passe" : "confirme",
+    mode: "sur_place",
+    lieu: a.slot.location,
+    motif: a.motive,
+    contact: { prenom: a.first_name, nom: a.last_name, telephone: a.phone },
+    instructions: a.instructions,
+    statut: a.status === "CANCELLED" ? "annule" : isPast({ fin }) ? "passe" : "confirme",
     modifiableJusquA: new Date(limite).toISOString(),
-    annulation: r.annulation && { par: r.annulation.par, message: r.annulation.message },
   };
 }
 
@@ -41,93 +54,78 @@ export function isModifiable(a: Appointment) {
   return a.statut === "confirme" && Date.now() <= new Date(a.modifiableJusquA).getTime();
 }
 
-function owned(id: string, userId: string) {
-  const r = db().appointments.get(id);
-  if (!r || r.userId !== userId) throw new ApiError(404, "Rendez-vous introuvable.");
-  return r;
-}
-
-function assertModifiable(r: AppointmentRecord) {
-  if (!isModifiable(toAppointment(r))) {
-    throw new ApiError(403, "Ce rendez-vous ne peut plus être modifié en ligne.");
+/** The API's 400s, as the codes the pages know. */
+function rethrow(e: unknown): never {
+  if (e instanceof ApiError && e.status === 400) {
+    const body = JSON.stringify(e.body ?? "");
+    if (/too late/i.test(body)) throw new ApiError(403, "Ce rendez-vous ne peut plus être modifié en ligne.", "delai");
+    if (/phone/i.test(body)) throw new ApiError(400, "Ce numéro de téléphone n'est pas valide.", "telephone");
+    if (/slot/i.test(body)) throw new ApiError(409, "Ce créneau n'est plus disponible.", "pris");
+    if (/cancelled/i.test(body)) throw new ApiError(404, "Ce rendez-vous est annulé.", "introuvable");
   }
+  if (e instanceof ApiError && e.status === 409) throw new ApiError(409, "Ce créneau vient d'être réservé.", "pris");
+  throw e;
 }
 
-async function assertAvailable(slotId: string) {
-  const found = await getSlot(slotId);
-  if (!found) throw new ApiError(404, "Créneau introuvable.");
-  if (!found.available) throw new ApiError(409, "Ce créneau vient d'être réservé.");
-  return found.slot;
-}
-
-/** GET /me/appointments?scope=upcoming|past */
-export async function listMyAppointments(userId: string, scope: "upcoming" | "past") {
-  await fakeLatency(200);
-  const all = [...db().appointments.values()]
-    .filter((r) => r.userId === userId)
-    .map(toAppointment)
-    .sort((a, b) => a.debut.localeCompare(b.debut));
+/** GET appointments — upcoming first-to-last, or past and cancelled last-to-first. */
+export async function listMyAppointments(scope: "upcoming" | "past") {
+  const [data, directory] = await Promise.all([api<ApiAppointment[]>("appointments"), contacts()]);
+  const all = data.map((a) => toAppointment(a, directory)).sort((a, b) => a.debut.localeCompare(b.debut));
   return scope === "upcoming"
     ? all.filter((a) => a.statut === "confirme")
     : all.filter((a) => a.statut !== "confirme").reverse();
 }
 
-/** GET /appointments/:id */
-export async function getAppointment(id: string, userId: string) {
-  await fakeLatency(150);
-  const r = db().appointments.get(id);
-  return r && r.userId === userId ? toAppointment(r) : null;
+/** GET appointments/{id} */
+export async function getAppointment(id: string) {
+  if (!/^\d+$/.test(id)) return null;
+  const [a, directory] = await Promise.all([apiOrNull<ApiAppointment>(`appointments/${id}`), contacts()]);
+  return a ? toAppointment(a, directory) : null;
 }
 
-/** POST /appointments → 409 when the slot is taken */
-export async function createAppointment(
-  user: { id: string; name: string; telephone: string },
-  input: { slotId: string; mode: Mode; motif: Motif },
-) {
-  await fakeLatency(400);
+/** The contact details of the client's last booking, to fill in the next one. */
+export async function lastContact() {
+  const data = await api<ApiAppointment[]>("appointments");
+  const last = data.at(-1);
+  return last && { prenom: last.first_name, nom: last.last_name, telephone: last.phone };
+}
+
+/** POST appointments → 409 when the slot is taken. The appointment limit is a demo rule (Réglages du service). */
+export async function createAppointment(input: { slotId: string; prenom: string; nom: string; telephone: string; motif: string }) {
   const max = platform().maxRdvAVenir;
-  const upcoming = [...db().appointments.values()].filter(
-    (r) => r.userId === user.id && !r.annulation && new Date(r.debut).getTime() > Date.now(),
-  ).length;
-  if (max > 0 && upcoming >= max) {
-    throw new ApiError(409, `Vous avez déjà ${upcoming} rendez-vous à venir.`, "limite");
+  if (max > 0) {
+    const upcoming = (await listMyAppointments("upcoming")).length;
+    if (upcoming >= max) throw new ApiError(409, `Vous avez déjà ${upcoming} rendez-vous à venir.`, "limite");
   }
-  const slot = await assertAvailable(input.slotId);
-  if (!slot.modes.includes(input.mode)) throw new ApiError(409, "Mode indisponible.");
-  const record: AppointmentRecord = {
-    id: newId("rdv"),
-    userId: user.id,
-    client: { nom: user.name, telephone: user.telephone },
-    conciliateurId: slot.conciliateurId,
-    slotId: slot.id,
-    debut: slot.debut,
-    dureeMinutes: parametres(slot.conciliateurId).dureeMinutes,
-    mode: input.mode,
-    motif: input.motif,
-    creeLe: new Date().toISOString(),
-  };
-  db().appointments.set(record.id, record);
-  return toAppointment(record);
+  const slot = parseSlotId(input.slotId);
+  if (!slot) throw new ApiError(404, "Créneau introuvable.", "introuvable");
+  try {
+    const a = await api<ApiAppointment>("appointments", {
+      method: "POST",
+      body: { slot_id: slot.slotId, first_name: input.prenom, last_name: input.nom, phone: input.telephone, motive: input.motif },
+    });
+    return { id: String(a.id) };
+  } catch (e) {
+    rethrow(e);
+  }
 }
 
-/** PATCH /appointments/:id → 403 past the deadline, 409 when the slot is taken */
-export async function rescheduleAppointment(id: string, userId: string, slotId: string) {
-  await fakeLatency(400);
-  const r = owned(id, userId);
-  assertModifiable(r);
-  const slot = await assertAvailable(slotId);
-  if (slot.conciliateurId !== r.conciliateurId) throw new ApiError(409, "Créneau d'un autre conciliateur.");
-  r.slotId = slot.id;
-  r.debut = slot.debut;
-  r.dureeMinutes = parametres(slot.conciliateurId).dureeMinutes;
-  return toAppointment(r);
+/** PATCH appointments/{id} { slot_id } → 403 past the deadline, 409 when the slot is taken */
+export async function rescheduleAppointment(id: string, slotId: string) {
+  const slot = parseSlotId(slotId);
+  if (!slot) throw new ApiError(404, "Créneau introuvable.", "introuvable");
+  try {
+    await api(`appointments/${id}`, { method: "PATCH", body: { slot_id: slot.slotId } });
+  } catch (e) {
+    rethrow(e);
+  }
 }
 
-/** POST /appointments/:id/cancel → 403 past the deadline */
-export async function cancelAppointment(id: string, userId: string, motif?: string) {
-  await fakeLatency(400);
-  const r = owned(id, userId);
-  assertModifiable(r);
-  r.annulation = { par: "client", message: motif, le: new Date().toISOString() };
-  return toAppointment(r);
+/** DELETE appointments/{id} → 403 past the deadline */
+export async function cancelAppointment(id: string) {
+  try {
+    await api(`appointments/${id}`, { method: "DELETE" });
+  } catch (e) {
+    rethrow(e);
+  }
 }

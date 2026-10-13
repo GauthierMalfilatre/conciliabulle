@@ -2,19 +2,25 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { platform } from "@/lib/api/store";
-import { apiGetMe } from "./fake-api";
+import { jwtExpiry } from "@/lib/api/client";
+import { apiGetMe } from "./api";
 import { readSession, SESSION_COOKIE, sessionState, signSession } from "./token";
 
 export { SESSION_COOKIE };
 
-/** Opens a session, with the limits set in Réglages du service. */
-export async function startSession(token: string) {
+/**
+ * Opens a session with the limits set in Réglages du service. It cannot outlive
+ * the API's refresh token (one day by default).
+ */
+export async function startSession(tokens: { access: string; refresh: string }) {
   const { sessionDureeHeures, inactiviteMinutes } = platform();
   const now = Date.now();
+  const exp = Math.min(now + sessionDureeHeures * 3_600_000, jwtExpiry(tokens.refresh) || Infinity);
   const value = await signSession({
-    tok: token,
+    tok: tokens.access,
+    ref: tokens.refresh,
     iat: now,
-    exp: now + sessionDureeHeures * 3_600_000,
+    exp,
     seen: now,
     idle: inactiviteMinutes,
   });
@@ -23,7 +29,7 @@ export async function startSession(token: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: sessionDureeHeures * 3600,
+    maxAge: Math.floor((exp - now) / 1000),
   });
 }
 

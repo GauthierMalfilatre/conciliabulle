@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { saveProfilAction } from "@/app/actions/pro";
+import { renewCalendarLinkAction, saveProfilAction } from "@/app/actions/pro";
 import { Container } from "@/components/layout";
 import { ProBand, SettingsTabs } from "@/components/pro";
-import { Alert, Button, Card, Field, Icon, Input, Textarea } from "@/components/ui";
-import { getProfil } from "@/lib/api/pro";
-import { DOMAINES, MODES } from "@/lib/api/referentiel";
+import { Alert, Button, Card, Field, Icon, Input, Select, Textarea } from "@/components/ui";
+import { getCalendarLink, getProfil } from "@/lib/api/pro";
+import { DEPARTEMENTS } from "@/lib/api/referentiel";
 import { requirePro } from "@/lib/auth/session";
 import { param, type SearchParams } from "@/lib/search-params";
 
@@ -27,81 +26,89 @@ export default function ProfilPage({ searchParams }: PageProps<"/pro/parametres/
   );
 }
 
-const check = "flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 text-base has-checked:border-primary has-checked:bg-secondary";
-
 async function Profil({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const { conciliateurId } = await requirePro();
-  const c = await getProfil(conciliateurId);
-  if (!c) notFound();
+  await requirePro();
+  const [c, agenda] = await Promise.all([getProfil(), getCalendarLink()]);
 
   return (
     <>
       {param(sp, "enregistre") && <Alert variant="success" title="Profil enregistré">Votre fiche publique est à jour.</Alert>}
+      {param(sp, "agenda") && <Alert variant="success" title="Nouveau lien d'agenda créé">L&apos;ancien lien ne fonctionne plus.</Alert>}
       {param(sp, "erreur") && <Alert variant="destructive" title={param(sp, "erreur")!} />}
+      {!c.verifie && (
+        <Alert variant="warning" title="Votre fiche n'est pas encore visible">
+          L&apos;association doit d&apos;abord valider votre compte. Vous pouvez préparer votre profil en attendant.
+        </Alert>
+      )}
 
       <form action={saveProfilAction} className="flex flex-col gap-6">
         <Card className="flex flex-col gap-5 p-6">
           <h2 className="text-2xl">Où recevez-vous ?</h2>
-          <Field id="lieu" label="Lieu de permanence">
-            <Input id="lieu" name="lieu" defaultValue={c.lieu} placeholder="Ex. : Mairie du 11e arrondissement" required />
-          </Field>
-          <Field id="adresse" label="Adresse">
-            <Input id="adresse" name="adresse" defaultValue={c.adresse} required />
-          </Field>
-          <Field id="telephone" label="Téléphone affiché aux justiciables">
-            <Input id="telephone" name="telephone" type="tel" defaultValue={c.telephone} required />
-          </Field>
-          <label className={check}>
-            <input type="checkbox" name="accesPMR" defaultChecked={c.accesPMR} className="size-5 accent-[#0f6cbd]" />
-            Lieu accessible en fauteuil roulant
-          </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field id="ville" label="Ville">
+              <Input id="ville" name="ville" defaultValue={c.ville} required />
+            </Field>
+            <Field id="departement" label="Département" hint="Les justiciables cherchent par département.">
+              <Select id="departement" name="departement" defaultValue={c.departement}>
+                {DEPARTEMENTS.map((d) => (
+                  <option key={d.code} value={d.code}>
+                    {d.code} – {d.nom}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <p className="text-base text-muted-foreground">
+            L&apos;adresse de chaque rendez-vous se règle dans l&apos;onglet{" "}
+            <Link href="/pro/parametres" className="font-semibold text-primary hover:underline">
+              Horaires
+            </Link>
+            .
+          </p>
         </Card>
 
         <Card className="flex flex-col gap-5 p-6">
-          <h2 className="text-2xl">Présentation</h2>
+          <h2 className="text-2xl">Présentation et consignes</h2>
           <Field id="presentation" label="Quelques mots pour vous présenter">
             <Textarea id="presentation" name="presentation" defaultValue={c.presentation} className="min-h-36" />
           </Field>
-          <Field id="langues" label="Autres langues parlées (séparées par des virgules)">
-            <Input id="langues" name="langues" defaultValue={c.langues.filter((l) => l !== "Français").join(", ")} placeholder="Ex. : Anglais, Arabe" />
+          <Field
+            id="instructions"
+            label="Consignes données après la réservation"
+            hint="Laissé vide, le message par défaut s'affiche : venir avec tout document utile au dossier."
+          >
+            <Textarea id="instructions" name="instructions" defaultValue={c.instructions} placeholder="Ex. : Apportez votre pièce d'identité et les courriers échangés." />
           </Field>
-        </Card>
-
-        <Card className="flex flex-col gap-5 p-6">
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-2xl font-bold">Litiges traités</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {Object.entries(DOMAINES).map(([code, d]) => (
-                <label key={code} className={check}>
-                  <input type="checkbox" name="domaines" value={code} defaultChecked={c.domaines.includes(code as never)} className="size-5 accent-[#0f6cbd]" />
-                  {d.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-2xl font-bold">Types de rendez-vous proposés</legend>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {Object.entries(MODES).map(([code, m]) => (
-                <label key={code} className={check}>
-                  <input type="checkbox" name="modes" value={code} defaultChecked={c.modes.includes(code as never)} className="size-5 accent-[#0f6cbd]" />
-                  {m.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
         </Card>
 
         <div className="flex flex-wrap items-center gap-4">
           <Button type="submit" size="lg" className="h-14 px-8 text-lg">
             <Icon name="check" className="size-5" /> Enregistrer mon profil
           </Button>
-          <Link href={`/conciliateurs/${conciliateurId}`} className="text-base font-semibold text-primary hover:underline">
-            Voir ma fiche publique
-          </Link>
+          {c.verifie && (
+            <Link href={`/conciliateurs/${c.id}`} className="text-base font-semibold text-primary hover:underline">
+              Voir ma fiche publique
+            </Link>
+          )}
         </div>
       </form>
+
+      <Card id="agenda" className="flex scroll-mt-24 flex-col gap-4 p-6">
+        <h2 className="text-2xl">Mes rendez-vous dans mon agenda</h2>
+        <p className="text-base text-muted-foreground">
+          Copiez ce lien dans Google Agenda, Outlook ou le calendrier de votre téléphone (« S&apos;abonner à un
+          agenda »). Vos rendez-vous s&apos;y ajoutent tout seuls. Gardez ce lien pour vous.
+        </p>
+        <Field id="lien-agenda" label="Lien d'abonnement">
+          <Input id="lien-agenda" readOnly value={agenda} className="font-mono text-sm" />
+        </Field>
+        <form action={renewCalendarLinkAction}>
+          <Button type="submit" variant="ghost">
+            Créer un nouveau lien (si quelqu&apos;un d&apos;autre a eu celui-ci)
+          </Button>
+        </form>
+      </Card>
     </>
   );
 }

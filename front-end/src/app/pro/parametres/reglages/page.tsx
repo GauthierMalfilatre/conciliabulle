@@ -4,6 +4,7 @@ import { resetSettingsAction, saveSettingsAction } from "@/app/actions/reglages"
 import { Container } from "@/components/layout";
 import { ProBand, SettingsTabs } from "@/components/pro";
 import { Alert, Button, Card, Field, Icon, Input, Select, Textarea, type IconName } from "@/components/ui";
+import { DELAI_MODIFICATION_HEURES } from "@/lib/api/referentiel";
 import { getPlatformSettings, OPTIONS } from "@/lib/api/reglages";
 import { requirePro } from "@/lib/auth/session";
 import { param, type SearchParams } from "@/lib/search-params";
@@ -113,7 +114,7 @@ async function Reglages({ searchParams }: { searchParams: Promise<SearchParams> 
         id="sessions"
         icon="shield"
         title="Sessions de connexion"
-        description="Combien de temps une personne reste connectée. S'applique aux prochaines connexions ; les sessions ouvertes gardent leurs limites."
+        description="Combien de temps une personne reste connectée (une journée au plus). S'applique aux prochaines connexions ; les sessions ouvertes gardent leurs limites."
       >
         <div className="grid gap-5 md:grid-cols-3">
           <Field id="sessionDureeHeures" label="Durée maximale d'une session">
@@ -156,16 +157,11 @@ async function Reglages({ searchParams }: { searchParams: Promise<SearchParams> 
         title="Rendez-vous"
         description="Règles de réservation pour les justiciables."
       >
-        <div className="grid gap-5 md:grid-cols-3">
-          <Field id="delaiModificationHeures" label="Modifier ou annuler en ligne jusqu'à">
-            <Select id="delaiModificationHeures" name="delaiModificationHeures" defaultValue={String(s.delaiModificationHeures)}>
-              {OPTIONS.delaiModificationHeures.map((h) => (
-                <option key={h} value={h}>
-                  {h} heures avant
-                </option>
-              ))}
-            </Select>
-          </Field>
+        <p className="rounded-lg bg-secondary p-4 text-base">
+          Modification et annulation en ligne : jusqu&apos;à {DELAI_MODIFICATION_HEURES} heures avant le rendez-vous.
+          Ce délai est fixé par le serveur de rendez-vous.
+        </p>
+        <div className="grid gap-5 md:grid-cols-2">
           <Field id="maxRdvAVenir" label="Rendez-vous à venir par personne">
             <Select id="maxRdvAVenir" name="maxRdvAVenir" defaultValue={String(s.maxRdvAVenir)}>
               {OPTIONS.maxRdvAVenir.map((n) => (

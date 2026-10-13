@@ -48,7 +48,7 @@ async function Form({ searchParams }: { searchParams: Promise<SearchParams> }) {
         )}
         <CallbackForm
           conciliateurId={conciliateur?.id}
-          defaults={{ nom: user?.name ?? "", telephone: user?.telephone ?? "" }}
+          defaults={{ nom: user?.name ?? "", telephone: "" }}
         />
       </Card>
     </>

@@ -4,7 +4,7 @@ import { openDossierAction } from "@/app/actions/pro";
 import { BackLink, Container } from "@/components/layout";
 import { Alert, Button, Card, Field, Input, Select } from "@/components/ui";
 import { getProAppointment } from "@/lib/api/pro";
-import { DOMAINES, motifLabel } from "@/lib/api/referentiel";
+import { DOMAINES } from "@/lib/api/referentiel";
 import { requirePro } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/format";
 import { param, type SearchParams } from "@/lib/search-params";
@@ -23,9 +23,9 @@ export default function NouveauDossierPage({ searchParams }: PageProps<"/pro/dos
 
 async function Nouveau({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const { conciliateurId } = await requirePro();
+  await requirePro();
   const rdvId = param(sp, "rdv");
-  const a = rdvId ? await getProAppointment(conciliateurId, rdvId) : null;
+  const a = rdvId ? await getProAppointment(rdvId) : null;
   if (!a) notFound();
 
   return (
@@ -36,7 +36,8 @@ async function Nouveau({ searchParams }: { searchParams: Promise<SearchParams> }
       <Card className="p-6 sm:p-8">
         <p className="text-base text-muted-foreground">À partir du rendez-vous du {formatDateTime(a.debut)}</p>
         <p className="mt-1 text-lg">
-          <strong>{a.client.nom}</strong> · {motifLabel(a.motif)}
+          <strong>{a.client.nom}</strong>
+          {a.motif && <> · {a.motif}</>}
         </p>
         <form action={openDossierAction} className="mt-6 flex flex-col gap-5">
           <input type="hidden" name="rdv" value={a.id} />

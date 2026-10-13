@@ -1,8 +1,8 @@
 import { Icon } from "@/components/ui";
-import { DOMAINES, MODES, REGIONS } from "@/lib/api/referentiel";
+import { DEPARTEMENTS } from "@/lib/api/referentiel";
 import { cn } from "@/lib/cn";
 
-export type SearchValues = { q?: string; region?: string; domaine?: string; mode?: string; dispo?: string };
+export type SearchValues = { q?: string; departement?: string; dispo?: string };
 
 const field = "h-14 w-full bg-transparent px-3 text-lg text-foreground placeholder:text-muted-foreground focus:outline-none";
 const chip =
@@ -24,12 +24,12 @@ export function SearchForm({ values, withFilters = true }: { values: SearchValue
         <span aria-hidden className="mx-1 h-px bg-border md:h-10 md:w-px" />
         <label className="flex flex-1 items-center gap-2 rounded-lg px-2 focus-within:ring-3 focus-within:ring-primary/30">
           <Icon name="mapPin" className="size-6 shrink-0 text-muted-foreground" />
-          <span className="sr-only">Région</span>
-          <select name="region" defaultValue={values.region ?? ""} className={cn(field, "cursor-pointer")}>
+          <span className="sr-only">Département</span>
+          <select name="departement" defaultValue={values.departement ?? ""} className={cn(field, "cursor-pointer")}>
             <option value="">Toute la France</option>
-            {REGIONS.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.nom}
+            {DEPARTEMENTS.map((d) => (
+              <option key={d.code} value={d.code}>
+                {d.code} – {d.nom}
               </option>
             ))}
           </select>
@@ -45,34 +45,12 @@ export function SearchForm({ values, withFilters = true }: { values: SearchValue
       {withFilters && (
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">Filtres</legend>
-          <label>
-            <span className="sr-only">Type de conflit</span>
-            <select name="domaine" defaultValue={values.domaine ?? ""} className={cn(chip, values.domaine && "border-primary bg-secondary text-secondary-foreground")}>
-              <option value="">Tous les conflits</option>
-              {Object.entries(DOMAINES).map(([code, d]) => (
-                <option key={code} value={code}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">Type de rendez-vous</span>
-            <select name="mode" defaultValue={values.mode ?? ""} className={cn(chip, values.mode && "border-primary bg-secondary text-secondary-foreground")}>
-              <option value="">Tous types de rendez-vous</option>
-              {Object.entries(MODES).map(([code, m]) => (
-                <option key={code} value={code}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className={cn(chip, "flex cursor-pointer items-center gap-2 has-checked:border-primary has-checked:bg-secondary")}>
             <input type="checkbox" name="dispo" value="1" defaultChecked={values.dispo === "1"} className="size-5 accent-[#0f6cbd]" />
-            Disponible sous 7 jours
+            Avec des horaires libres
           </label>
           <button type="submit" className="h-11 rounded-full px-4 text-base font-semibold text-white underline-offset-4 hover:underline">
-            Appliquer les filtres
+            Appliquer le filtre
           </button>
         </fieldset>
       )}

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Faille de sécurité
+    url: https://github.com/GauthierMalfilatre/justice-tech-2026/blob/main/SECURITY.md
+    about: "Ne publie jamais une faille dans une issue : suis SECURITY.md."

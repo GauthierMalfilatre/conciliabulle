@@ -1,0 +1,29 @@
+name: Bug
+description: Quelque chose ne marche pas comme prévu
+labels: [bug]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ce que tu attendais
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Ce qui s'est passé
+      description: Message d'erreur, code HTTP, réponse de l'API…
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Comment reproduire
+      description: Une requête curl, ou les étapes dans Swagger (`/api/docs/`). N'inclus ni mot de passe, ni token, ni données personnelles réelles.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Branche ou commit
+      placeholder: main, 1a2b3c4…

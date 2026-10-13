@@ -1,0 +1,29 @@
+name: Besoin côté API (front)
+description: Il manque un champ, une route ou un comportement dans l'API pour construire un écran
+labels: [api-request]
+body:
+  - type: textarea
+    id: screen
+    attributes:
+      label: L'écran ou le parcours concerné
+      description: Qu'est-ce que l'utilisateur doit pouvoir faire ? Une capture ou une maquette aide.
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: Ce qui manque aujourd'hui
+      description: Quelle route, quel champ ou quel filtre ? Qu'est-ce qui est renvoyé actuellement ?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposition (facultatif)
+      description: Forme souhaitée de la requête et de la réponse.
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Contribution
+      options:
+        - label: Je peux proposer la PR backend moi-même

@@ -1,4 +1,5 @@
-from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveDestroyAPIView
+from rest_framework.exceptions import ValidationError
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from apps.accounts.permissions import IsPlainUser
 from apps.conciliateurs.permissions import IsConciliateur
@@ -22,14 +23,21 @@ class AppointmentListCreateView(ListCreateAPIView):
         serializer.instance = services.book(self.request.user, d["slot"], d.get("motive", ""))
 
 
-class AppointmentDetailView(RetrieveDestroyAPIView):
+class AppointmentDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsPlainUser]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Appointment.objects.none()
         return self.request.user.appointments.select_related("slot")
+
+    def perform_update(self, serializer):
+        slot = serializer.validated_data.get("slot")
+        if slot is None:
+            raise ValidationError({"slot_id": "This field is required."})
+        services.reschedule(serializer.instance, slot)
 
     def perform_destroy(self, instance):
         services.cancel(instance)  # soft cancel: the row is kept

@@ -45,3 +45,16 @@ def cancel(appointment):
     check_changeable(appointment)
     appointment.status = Appointment.Status.CANCELLED
     appointment.save(update_fields=["status"])
+
+
+def reschedule(appointment, slot):
+    check_changeable(appointment)
+    if slot.pk == appointment.slot_id:
+        raise ValidationError({"slot_id": "Already booked on this slot."})
+    check_bookable(slot)
+    appointment.slot = slot
+    try:
+        with transaction.atomic():
+            appointment.save(update_fields=["slot"])
+    except IntegrityError:
+        raise SlotTaken

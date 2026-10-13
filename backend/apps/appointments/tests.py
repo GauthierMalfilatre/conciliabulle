@@ -81,3 +81,38 @@ class CancelTests(AppointmentTestCase):
         appt_id = self.book().json()["id"]
         other = client_for(User.objects.create_user("o@b.fr", "pw"))
         self.assertEqual(other.delete(f"/api/v1/appointments/{appt_id}").status_code, 404)
+
+
+class RescheduleTests(AppointmentTestCase):
+    def patch(self, appt_id, slot, api=None):
+        return (api or self.api).patch(f"/api/v1/appointments/{appt_id}", {"slot_id": slot.id}, format="json")
+
+    def test_reschedule_swaps_slots(self):
+        appt_id = self.book().json()["id"]
+        new = make_slot(self.c, days=5)
+        r = self.patch(appt_id, new)
+        self.assertEqual((r.status_code, r.json()["slot"]["id"]), (200, new.id))
+        free = [s["id"] for s in self.api.get(f"/api/v1/conciliateurs/{self.c.id}/slots").json()]
+        self.assertEqual(free, [self.slot.id])
+
+    def test_reschedule_to_taken_slot_is_409_and_unchanged(self):
+        appt_id = self.book().json()["id"]
+        taken = make_slot(self.c, days=5)
+        self.book(taken, api=client_for(User.objects.create_user("o@b.fr", "pw")))
+        self.assertEqual(self.patch(appt_id, taken).status_code, 409)
+        self.assertEqual(Appointment.objects.get(pk=appt_id).slot_id, self.slot.id)
+
+    def test_reschedule_refused_in_window_cancelled_same_slot_or_missing_slot(self):
+        soon = make_slot(self.c, days=0, hours=2)
+        soon_id = self.book(soon).json()["id"]
+        self.assertEqual(self.patch(soon_id, make_slot(self.c, days=6)).status_code, 400)
+        appt_id = self.book().json()["id"]
+        self.assertEqual(self.patch(appt_id, self.slot).status_code, 400)
+        self.assertEqual(self.api.patch(f"/api/v1/appointments/{appt_id}", {}, format="json").status_code, 400)
+        self.api.delete(f"/api/v1/appointments/{appt_id}")
+        self.assertEqual(self.patch(appt_id, make_slot(self.c, days=7)).status_code, 400)
+
+    def test_cannot_reschedule_someone_elses(self):
+        appt_id = self.book().json()["id"]
+        other = client_for(User.objects.create_user("o@b.fr", "pw"))
+        self.assertEqual(self.patch(appt_id, make_slot(self.c, days=5), api=other).status_code, 404)

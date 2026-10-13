@@ -17,3 +17,9 @@ class HealthDbDownTests(SimpleTestCase):
             r = self.client.get("/api/v1/health")
         self.assertEqual(r.status_code, 503)
         self.assertEqual(r.json()["database"], "error")
+
+
+class DocsTests(TestCase):
+    def test_swagger_and_schema(self):
+        self.assertEqual(self.client.get("/api/docs/").status_code, 200)
+        self.assertIn("/api/v1/health", self.client.get("/api/schema/?format=json").json()["paths"])

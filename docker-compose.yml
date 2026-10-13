@@ -1,4 +1,7 @@
-# Production-like local run:  cp backend/.env.example backend/.env  &&  docker compose up --build
+# Production-like local run:
+#   cp backend/.env.example backend/.env
+#   SESSION_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))') docker compose up --build
+# API on :8000, site on :3000.
 name: conciliabulle
 
 services:
@@ -7,11 +10,22 @@ services:
     env_file: backend/.env
     environment:
       DEBUG: "false"                    # override the dev value of .env
+      ALLOWED_HOSTS: localhost,127.0.0.1,api   # "api": the web service calls it by name
       DATABASE_PATH: /data/db.sqlite3
     ports:
       - "8000:8000"
     volumes:
       - api-data:/data
+
+  web:
+    build: ./front-end
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8000/api/v1
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET (long random string)}
+    ports:
+      - "3000:3000"
 
 volumes:
   api-data:

@@ -2,7 +2,7 @@
 
 API REST (backend/) pour prendre, modifier et annuler des rendez-vous avec des conciliateurs de justice.
 Nom du projet : **ConciliaBulle** (le dépôt GitHub et le dossier local s'appellent encore `justice-tech-2026` : ne pas utiliser l'ancien nom dans le code, la doc ou les libellés).
-Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCILIATEUR »).
+Le frontend est dans `front-end/` (Next.js, voir son README) : il appelle l'API côté serveur (`API_URL`, JWT dans un cookie de session signé par `SESSION_SECRET`, obligatoire en production). Dossiers de conciliation, demandes de rappel, réglages du service, présence et notes sont encore **fictifs** (`front-end/src/lib/api/store.ts`, en mémoire) : l'API ne les connaît pas.
 
 ## Cahier des charges (résumé)
 - **Plaignant** : crée un compte / se connecte ; voit les conciliateurs d'une zone géographique (département) ; réserve un créneau dans le calendrier d'un conciliateur en donnant nom, prénom, téléphone (obligatoires) ; voit les consignes du rendez-vous après réservation (venir avec tout document utile) ; modifie/annule jusqu'à 24h avant.
@@ -107,4 +107,4 @@ Codes : 409 créneau déjà pris ; 400 hors fenêtre, déjà annulé, créneau p
 - Permissions par défaut : `IsAuthenticated` ; les vues publiques déclarent `AllowAny` + `authentication_classes = []`.
 
 ## Pas encore fait
-Annulation par le conciliateur, notification de l'association pour une candidature, e-mail de confirmation au plaignant (non demandé), envoi d'e-mails asynchrone (file de tâches) si le SMTP est lent, contenu « modalités et conditions de recrutement » (prévu côté front), détection des chevauchements entre disponibilités/créneaux, modification d'une disponibilité (supprimer puis recréer), recherche par ville/rayon GPS, rate limiting hors candidatures, durée de conservation des données personnelles (RGPD), frontend.
+Frontend : brancher dossiers, rappels et réglages sur l'API. Annulation par le conciliateur, notification de l'association pour une candidature, e-mail de confirmation au plaignant (non demandé), envoi d'e-mails asynchrone (file de tâches) si le SMTP est lent, contenu « modalités et conditions de recrutement » (prévu côté front), détection des chevauchements entre disponibilités/créneaux, modification d'une disponibilité (supprimer puis recréer), recherche par ville/rayon GPS, rate limiting hors candidatures, durée de conservation des données personnelles (RGPD).

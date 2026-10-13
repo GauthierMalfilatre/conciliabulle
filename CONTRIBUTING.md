@@ -73,7 +73,7 @@ Et aussi :
 - Codes d'erreur : 400 donnée ou règle invalide, 403 mauvais rôle, 404 introuvable (ou ressource d'un autre), 409 conflit (créneau pris).
 
 ## 6. Contribuer côté front
-Le frontend n'existe pas encore : tu peux le démarrer dans un dossier `frontend/` (ouvre d'abord une issue pour qu'on s'accorde sur la stack).
+Le frontend est dans `front-end/` (voir son README pour le démarrer) ; avant une PR front : `npx tsc --noEmit && npm run lint && npm run build`.
 - Le contrat de l'API est le schéma OpenAPI (`/api/schema/`) : génère-en un client typé plutôt que d'écrire les appels à la main.
 - Le front de dev doit tourner sur le port **3000** (seule origine autorisée par CORS par défaut, voir le README).
 - Lance l'API avec `--authorize-all=yes` pour avoir des conciliateurs à afficher sans passer par l'admin.

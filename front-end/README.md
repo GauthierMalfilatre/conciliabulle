@@ -9,33 +9,39 @@ Next.js 16 (App Router, `cacheComponents`), React 19, Tailwind CSS 4. Aucune aut
 
 ## Démarrer
 
+Il faut l'API Django (voir le [README racine](../README.md)) : `python manage.py runserver` dans `backend/`,
+après `seed_demo` pour avoir des comptes et des créneaux.
+
 ```bash
+cp .env.example .env.local   # API_URL (défaut : http://localhost:8000/api/v1), SESSION_SECRET, FAKE_LATENCY
 npm install
 npm run dev                  # http://localhost:3000
-FAKE_LATENCY=0 npm run dev   # sans le délai réseau simulé
 ```
 
-En production, définissez **`SESSION_SECRET`** (longue chaîne aléatoire) : elle signe le
-cookie de session. Sans elle, une valeur de développement est utilisée et n'importe qui
-pourrait fabriquer une session.
+En production, **`SESSION_SECRET`** est obligatoire (longue chaîne aléatoire) : elle signe le cookie de
+session, et la connexion échoue sans elle. Node 20.9 ou plus.
 
 Avant de pousser : `npx tsc --noEmit && npm run lint && npm run build`.
 
 ## Comptes de démonstration
 
-Connexion par **email + mot de passe**. Mot de passe de tous les comptes : **`password`**
-(les boutons « Comptes de démonstration » de la page de connexion remplissent les champs).
+Ce sont ceux de `python manage.py seed_demo` côté API, mot de passe **`Demo-pass-2026!`**
+(la commande affiche la liste) :
 
-| Email                  | Statut         | Ce qu'il voit                                               |
-| ---------------------- | -------------- | ----------------------------------------------------------- |
-| `justiciable@test.fr`  | `justiciable`  | Camille Martin : recherche, rendez-vous, dossier            |
-| `conciliateur@test.fr` | `conciliateur` | Sophie Lambert (Mairie du 11e) : espace conciliateur `/pro` |
+| Email                      | Statut         | Ce qu'il voit                                  |
+| -------------------------- | -------------- | ---------------------------------------------- |
+| `alice.durand@demo.fr`     | `justiciable`  | Recherche, rendez-vous déjà pris               |
+| `jean.martin@demo.fr`      | `conciliateur` | Espace conciliateur `/pro` (Lyon, vérifié)     |
 
-Codes dossier de démonstration (dossier n° 2026-0412) : **`CJ-4821-KQ`** pour Camille Martin,
-`CJ-4821-ZT` pour l'autre partie.
+## Ce qui vient de l'API, et ce qui est encore fictif
 
-Les données (réservations, paramètres, dossiers…) sont gardées **en mémoire** et repartent
-du jeu de démonstration à chaque redémarrage du serveur.
+Branché sur l'API (`src/lib/api/`, `src/lib/auth/`) : comptes et connexion (JWT gardé dans le cookie de
+session signé, jamais dans le navigateur), annuaire et créneaux, réservation / changement / annulation,
+rendez-vous du conciliateur, horaires récurrents, profil, notifications, lien d'agenda `.ics`, candidatures.
+
+**Encore en mémoire** (`src/lib/api/store.ts`, perdu au redémarrage du serveur) car l'API n'a pas ces
+fonctions : dossiers de conciliation et leurs codes, demandes de rappel, réglages du service, présence
+et notes sur un rendez-vous. Les écrans correspondants ne reflètent donc pas la base réelle.
 
 ## Côté justiciable
 

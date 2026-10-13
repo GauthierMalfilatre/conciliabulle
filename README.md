@@ -5,11 +5,11 @@
 | Dossier | Contenu | État |
 |---|---|---|
 | `backend/` | API REST Django + DRF, JWT stateless, sqlite3 | ✅ en place |
-| frontend | à venir | 🚧 on cherche des volontaires, voir [CONTRIBUTING.md](CONTRIBUTING.md) |
+| `front-end/` | Next.js 16 + React 19 + Tailwind, branché sur l'API (voir [front-end/README.md](front-end/README.md)) | 🚧 en cours : dossiers, rappels et réglages encore fictifs |
 
 ## Démarrer l'API
 
-Prérequis : Python 3.12+ (développé en 3.14).
+Prérequis : Python 3.12+ (développé en 3.14) ; Node 20.9+ pour le front.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate

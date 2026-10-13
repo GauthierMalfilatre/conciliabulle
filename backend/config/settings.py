@@ -145,3 +145,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# Testing only: let users see/book unverified conciliateurs. Set by `runserver --authorize-all=yes`.
+AUTHORIZE_ALL = False

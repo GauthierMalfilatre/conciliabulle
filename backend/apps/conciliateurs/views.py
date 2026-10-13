@@ -1,10 +1,52 @@
-from rest_framework.generics import CreateAPIView
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework.generics import CreateAPIView, DestroyAPIView, ListAPIView, ListCreateAPIView
 from rest_framework.permissions import AllowAny
 
-from .serializers import ConciliateurRegisterSerializer
+from .models import ConciliateurProfile, Slot
+from .permissions import IsConciliateur
+from .serializers import ConciliateurRegisterSerializer, ConciliateurSerializer, SlotSerializer
 
 
 class ConciliateurRegisterView(CreateAPIView):
     serializer_class = ConciliateurRegisterSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+
+
+class ConciliateurListView(ListAPIView):
+    serializer_class = ConciliateurSerializer
+
+    def get_queryset(self):
+        return ConciliateurProfile.objects.visible().select_related("user")
+
+
+class FreeSlotListView(ListAPIView):
+    serializer_class = SlotSerializer
+
+    def get_queryset(self):
+        c = get_object_or_404(ConciliateurProfile.objects.visible(), pk=self.kwargs["pk"])
+        return c.slots.filter(start__gt=timezone.now())
+
+
+class MySlotListCreateView(ListCreateAPIView):
+    serializer_class = SlotSerializer
+    permission_classes = [IsConciliateur]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Slot.objects.none()
+        return self.request.user.conciliateur.slots.all()
+
+    def perform_create(self, serializer):
+        serializer.save(conciliateur=self.request.user.conciliateur)
+
+
+class MySlotDeleteView(DestroyAPIView):
+    permission_classes = [IsConciliateur]
+    serializer_class = SlotSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Slot.objects.none()
+        return self.request.user.conciliateur.slots.all()

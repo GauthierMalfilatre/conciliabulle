@@ -49,7 +49,7 @@ et notes sur un rendez-vous. Les écrans correspondants ne reflètent donc pas l
 | --------------------------------- | --------------------------------------------------------------------- | --------- |
 | `/conciliateurs`                  | Recherche par nom ou ville, région, type de litige, disponibilité     | Non       |
 | `/conciliateurs/[id]`             | Fiche (lieu de permanence, gratuité) et créneaux par semaine          | Non       |
-| `/rendez-vous/nouveau?creneau=…`  | Réservation en 3 étapes : motif → type de rendez-vous → vérification  | Oui       |
+| `/rendez-vous/nouveau?creneau=…`  | Réservation en une page : nom, prénom, téléphone de la personne concernée  | Oui       |
 | `/mes-rendez-vous`                | Rendez-vous à venir / passés et annulés                               | Oui       |
 | `/mes-rendez-vous/[id]`           | Détail, agenda (.ics), impression, changer la date, annuler           | Oui       |
 | `/mon-dossier`                    | Dossier rejoint avec un code, réunions de conciliation                | Oui       |
@@ -154,7 +154,7 @@ corps avec `fetch`, sans toucher aux pages. Les types partagés sont dans
 | `getConciliateur`        | `GET /conciliateurs/:id`                            | 404                          |
 | `getWeekSlots`           | `GET /conciliateurs/:id/slots?from=&to=`            | –                            |
 | `getSlot`                | `GET /slots/:id`                                    | 404                          |
-| `createAppointment`      | `POST /appointments { slotId, mode, motif }`        | 409 créneau pris ou limite atteinte (`code: "limite"`) |
+| `createAppointment`      | `POST /appointments { slot_id, first_name, last_name, phone }` | 409 créneau pris ou limite atteinte (`code: "limite"`) |
 | `listMyAppointments`     | `GET /me/appointments?scope=upcoming\|past`         | –                            |
 | `getAppointment`         | `GET /appointments/:id`                             | 404                          |
 | `rescheduleAppointment`  | `PATCH /appointments/:id { slotId }`                | 403 hors délai, 409          |

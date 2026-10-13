@@ -6,8 +6,7 @@ import {
   createAppointment,
   rescheduleAppointment as apiReschedule,
 } from "@/lib/api/appointments";
-import { DOMAINES, MOTIF_AUTRE } from "@/lib/api/referentiel";
-import { ApiError, type Domaine } from "@/lib/api/types";
+import { ApiError } from "@/lib/api/types";
 import { normalizePhone } from "@/lib/phone";
 import { requireClient } from "@/lib/auth/session";
 import { withParams } from "@/lib/search-params";
@@ -27,15 +26,10 @@ function errorCode(e: unknown) {
 export async function bookAppointment(formData: FormData) {
   await requireClient();
   const slotId = field(formData, "creneau");
-  const motif = field(formData, "motif") as Domaine | "autre";
-  if (!(motif in DOMAINES || motif === "autre")) {
-    redirect(withParams("/rendez-vous/nouveau", { creneau: slotId }));
-  }
   const contact = { prenom: field(formData, "prenom"), nom: field(formData, "nom"), telephone: field(formData, "telephone") };
-  const precision = field(formData, "precision");
   // The phone number is not put back in the URL (browser history): it is typed again.
   const back = (erreur: string) =>
-    withParams("/rendez-vous/nouveau", { creneau: slotId, motif, etape: "recap", erreur, prenom: contact.prenom, nom: contact.nom, precision });
+    withParams("/rendez-vous/nouveau", { creneau: slotId, erreur, prenom: contact.prenom, nom: contact.nom });
 
   const phone = normalizePhone(contact.telephone);
   if (!contact.prenom || !contact.nom || !phone) redirect(back("coordonnees"));
@@ -47,7 +41,6 @@ export async function bookAppointment(formData: FormData) {
       prenom: contact.prenom,
       nom: contact.nom,
       telephone: phone.replace(/(\d{2})(?=\d)/g, "$1 "),
-      motif: [motif === "autre" ? MOTIF_AUTRE.motif : DOMAINES[motif].motif, precision].filter(Boolean).join(" — "),
     }));
   } catch (e) {
     redirect(back(errorCode(e)));

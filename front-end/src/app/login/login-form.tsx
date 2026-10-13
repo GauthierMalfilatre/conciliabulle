@@ -13,7 +13,7 @@ const DEMO_ACCOUNTS: { email: string; label: string; icon: IconName }[] = [
   { email: "jean.martin@demo.fr", label: "Conciliateur", icon: "briefcase" },
 ];
 
-export function LoginForm() {
+export function LoginForm({ demo }: { demo: boolean }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,7 +73,7 @@ export function LoginForm() {
         Créer un compte
       </Link>
 
-      {process.env.NODE_ENV !== "production" && (
+      {demo && (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-muted-foreground">
           <span className="h-px flex-1 bg-border" />

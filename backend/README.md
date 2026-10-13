@@ -24,6 +24,7 @@ All environment-specific settings come from environment variables; for local wor
 |---|---|---|
 | `SECRET_KEY` | none | **Required** unless `DEBUG=true` (Django refuses to start). Never commit it. |
 | `DEBUG` | `false` | Secure by default; `.env.example` sets `true` for local work. |
+| `DEMO_DATA` | `false` | `true` lets `seed_demo` run when `DEBUG` is off (the docker compose sets it). Never on a real deployment. |
 | `ALLOWED_HOSTS` | empty | Comma-separated. With `DEBUG=true` and empty, only localhost works. |
 | `CORS_ALLOWED_ORIGINS` | `localhost:3000` | Front origins allowed to call the API from a browser. |
 | `CSRF_TRUSTED_ORIGINS` | empty | Only for the Django admin behind an HTTPS domain. |

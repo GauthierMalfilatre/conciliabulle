@@ -296,7 +296,12 @@ class SeedDemoTests(TestCase):
         self.assertEqual(User.objects.filter(email__endswith="@demo.fr").count(), 1 + 6 + 5)  # admin + conciliateurs + plaignants
         self.assertTrue(User.objects.filter(pk=stranger.pk).exists())  # only demo accounts are touched
 
-    @override_settings(DEBUG=False)
+    @override_settings(DEBUG=False, DEMO_DATA=True)
+    def test_demo_data_flag_allows_it_without_debug(self):
+        self.seed()
+        self.assertTrue(User.objects.filter(email="alice.durand@demo.fr").exists())
+
+    @override_settings(DEBUG=False, DEMO_DATA=False)
     def test_refuses_when_debug_is_off(self):
         with self.assertRaises(CommandError):
             self.seed()

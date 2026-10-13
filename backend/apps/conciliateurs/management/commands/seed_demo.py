@@ -61,8 +61,8 @@ class Command(BaseCommand):
         parser.add_argument("--reset", action="store_true", help="Delete the existing demo data first (accounts ending with @demo.fr).")
 
     def handle(self, *args, reset, **options):
-        if not settings.DEBUG:
-            raise CommandError("Refusing to create accounts with a known password when DEBUG is off.")
+        if not (settings.DEBUG or settings.DEMO_DATA):
+            raise CommandError("Refusing to create accounts with a known password unless DEBUG or DEMO_DATA is on.")
         if reset:
             self._delete_demo_data()
         elif User.objects.filter(email__endswith=DOMAIN).exists():

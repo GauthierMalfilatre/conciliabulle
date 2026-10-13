@@ -4,7 +4,8 @@ API REST (backend/) pour prendre, modifier et annuler des rendez-vous avec des c
 Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCILIATEUR »).
 
 ## Règles de travail
-- Branche `feat/backend`. Commits fréquents et petits, en **Conventional Commits** (`feat(scope):`, `fix:`, `test:`, `docs:`, `chore:`), terminés par la ligne Co-Authored-By demandée par l'environnement.
+- Les contributeurs externes suivent `CONTRIBUTING.md` (PR vers `main`, modèle dans `.github/pull_request_template.md`) ; `README.md` à la racine = démarrage rapide pour tout le monde. Garder ces trois fichiers cohérents avec ce document.
+- Branche courante du travail backend : `feat/backend`. Commits fréquents et petits, en **Conventional Commits** (`feat(scope):`, `fix:`, `test:`, `docs:`, `chore:`), terminés par la ligne Co-Authored-By demandée par l'environnement.
 - Chaque fonctionnalité a ses tests. Lancer `python manage.py test` (depuis `backend/`) avant de commiter.
 - **Mettre à jour ce fichier à chaque changement important** (nouvelle route, nouveau modèle, règle métier, commande, décision d'architecture). Mettre aussi à jour le schéma Mermaid de `backend/README.md` quand un modèle change.
 - Chaque nouvelle vue doit avoir `@extend_schema(tags=[...])` (un test vérifie que tout est taggé) et apparaître proprement dans Swagger.

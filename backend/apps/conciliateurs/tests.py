@@ -293,7 +293,7 @@ class SeedDemoTests(TestCase):
             self.seed()
         stranger = User.objects.create_user("real@example.fr", "pw")
         self.seed(reset=True)
-        self.assertEqual(User.objects.filter(email__endswith="@demo.fr").count(), 1 + 6 + 5)  # admin + conciliateurs + plaignants
+        self.assertEqual(User.objects.filter(email__endswith="@demo.fr").count(), 1 + 7 + 5)  # admin + conciliateurs + plaignants
         self.assertTrue(User.objects.filter(pk=stranger.pk).exists())  # only demo accounts are touched
 
     @override_settings(DEBUG=False, DEMO_DATA=True)

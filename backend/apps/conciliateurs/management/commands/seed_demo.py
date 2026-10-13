@@ -32,6 +32,8 @@ CONCILIATEURS = [
      [(3, "09:00", "12:00", 30, "Maison de justice et du droit, quartier Belsunce")]),
     ("anna.santoni", "Anna", "Santoni", "Ajaccio", "2A", True, "Ancienne greffière.", "",
      [(1, "14:00", "17:00", 60, "Mairie d'Ajaccio, salle 2")]),
+    ("louise.laurent", "Louise", "Laurent", "Nancy", "54", True, "Ancienne cadre bancaire, conciliatrice depuis 2021.", "",
+     [(2, "09:00", "12:00", 45, "Mairie de Nancy, place Stanislas"), (4, "14:00", "17:00", 45, "Mairie de Nancy, place Stanislas")]),
 ]
 
 # first name, last name, phone

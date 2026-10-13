@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'apps.accounts',
+    'apps.conciliateurs',
     'apps.health',
 ]
 

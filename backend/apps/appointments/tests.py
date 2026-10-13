@@ -1,7 +1,9 @@
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.conciliateurs.models import Slot
@@ -143,3 +145,52 @@ class UpdateDetailsTests(AppointmentTestCase):
     def test_patch_details_refused_inside_window(self):
         appt_id = self.book(make_slot(self.c, days=0, hours=2)).json()["id"]
         self.assertEqual(self.api.patch(f"/api/v1/appointments/{appt_id}", {"phone": "0612345678"}, format="json").status_code, 400)
+
+
+class CalendarExportTests(AppointmentTestCase):
+    def feed_url(self, api=None):
+        url = (api or client_for(self.c.user)).get("/api/v1/me/calendar").json()["url"]
+        return url.split("testserver")[1]
+
+    def test_feed_contains_booked_appointments_only(self):
+        self.book()
+        cancelled = self.book(make_slot(self.c, days=5)).json()["id"]
+        self.api.delete(f"/api/v1/appointments/{cancelled}")
+        other = make_conciliateur("o@b.fr")
+        self.book(make_slot(other, days=4))
+        r = APIClient().get(self.feed_url())  # no credentials: the token is the credential
+        text = r.content.decode()
+        self.assertEqual((r.status_code, r["Content-Type"]), (200, "text/calendar; charset=utf-8"))
+        self.assertEqual(text.count("BEGIN:VEVENT"), 1)
+        self.assertTrue(text.startswith("BEGIN:VCALENDAR\r\n") and text.endswith("END:VCALENDAR\r\n"))
+        self.assertIn("SUMMARY:Rendez-vous : Alice Durand", text)
+        self.assertIn("Téléphone : +33 6 12 34 56 78", text.replace("\\", "").replace("\r\n ", ""))
+
+    def test_dates_are_utc(self):
+        self.book()
+        text = APIClient().get(self.feed_url()).content.decode()
+        self.assertIn("DTSTART:" + self.slot.start.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ"), text)
+
+    def test_rotate_invalidates_old_link(self):
+        api = client_for(self.c.user)
+        old = self.feed_url(api)
+        self.assertEqual(self.feed_url(api), old)  # stable until rotated
+        new = api.post("/api/v1/me/calendar").json()["url"].split("testserver")[1]
+        self.assertNotEqual(new, old)
+        self.assertEqual(APIClient().get(old).status_code, 404)
+        self.assertEqual(APIClient().get(new).status_code, 200)
+
+    def test_only_conciliateurs_get_a_link_and_unknown_token_is_404(self):
+        self.assertEqual(self.api.get("/api/v1/me/calendar").status_code, 403)
+        self.assertEqual(APIClient().get("/api/v1/calendar/nope.ics").status_code, 404)
+
+
+class IcsFormatTests(SimpleTestCase):
+    def test_escaping_and_folding(self):
+        from . import ics
+
+        self.assertEqual(ics._escape("a,b;c\nd\\"), "a\\,b\;c\\nd\\\\")
+        folded = ics._fold("X:" + "é" * 100)
+        for line in folded.split("\r\n"):
+            self.assertLessEqual(len(line.encode()), 75)
+        self.assertEqual(folded.replace("\r\n ", ""), "X:" + "é" * 100)  # lossless, no split character

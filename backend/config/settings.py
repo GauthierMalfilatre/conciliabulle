@@ -154,6 +154,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Conciliateurs", "description": "Annuaire des conciliateurs et leurs créneaux libres."},
         {"name": "Créneaux", "description": "Gestion de ses créneaux (conciliateur)."},
         {"name": "Rendez-vous", "description": "Prendre, modifier, annuler un rendez-vous."},
+        {"name": "Calendrier", "description": "Export iCalendar (.ics) des rendez-vous du conciliateur, pour Google Calendar, Outlook..."},
         {"name": "Candidatures", "description": "Devenir conciliateur : déposer ses informations pour être recontacté par l'association du département."},
         {"name": "Health", "description": "État de l'API."},
     ],

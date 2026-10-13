@@ -20,6 +20,8 @@ class ConciliateurProfile(models.Model):
     bio = models.TextField(blank=True)
     # Real conciliateurs are appointed officially: an admin validates them.
     is_verified = models.BooleanField(default=False)
+    # Secret in the URL of the .ics feed (calendar apps cannot send a JWT). Created on first use.
+    calendar_token = models.CharField(max_length=64, unique=True, null=True, blank=True, editable=False)
 
     def __str__(self):
         return f"{self.user.email} ({self.city})"

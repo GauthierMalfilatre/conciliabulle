@@ -13,7 +13,7 @@ from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIVi
 from . import services
 from .models import Availability, ConciliateurProfile, Slot
 from .permissions import IsConciliateur
-from .serializers import AvailabilitySerializer, ConciliateurSerializer, ProfileSerializer, SlotSerializer
+from .serializers import AvailabilitySerializer, ConciliateurSerializer, MySlotSerializer, ProfileSerializer, SlotSerializer
 
 
 class Conflict(APIException):
@@ -72,15 +72,26 @@ class FreeSlotListView(ListAPIView):
         return qs
 
 
-@extend_schema(tags=["Créneaux"])
+@extend_schema(
+    tags=["Créneaux"],
+    parameters=[
+        OpenApiParameter("from", OpenApiTypes.DATETIME, description="Début (inclus), date ou datetime ISO 8601."),
+        OpenApiParameter("to", OpenApiTypes.DATETIME, description="Fin (exclue), date ou datetime ISO 8601."),
+    ],
+)
 class MySlotListCreateView(ListCreateAPIView):
-    serializer_class = SlotSerializer
+    serializer_class = MySlotSerializer
     permission_classes = [IsConciliateur]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Slot.objects.none()
-        return self.request.user.conciliateur.slots.all()
+        qs = self.request.user.conciliateur.slots.prefetch_related("appointments")
+        if value := self.request.query_params.get("from"):
+            qs = qs.filter(start__gte=_parse_bound("from", value))
+        if value := self.request.query_params.get("to"):
+            qs = qs.filter(start__lt=_parse_bound("to", value))
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(conciliateur=self.request.user.conciliateur)

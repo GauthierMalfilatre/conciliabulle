@@ -238,3 +238,29 @@ class ProfileTests(TestCase):
 
     def test_plain_user_refused(self):
         self.assertEqual(client_for(User.objects.create_user("u@b.fr", "pw")).get("/api/v1/me/profile").status_code, 403)
+
+
+class MyCalendarTests(TestCase):
+    def setUp(self):
+        self.c = make_conciliateur()
+        self.api = client_for(self.c.user)
+        self.plaignant = User.objects.create_user("u@b.fr", "pw")
+        self.free = Slot.objects.create(conciliateur=self.c, start=timezone.now() + timedelta(days=2), end=timezone.now() + timedelta(days=2, hours=1), location="x")
+        self.taken = Slot.objects.create(conciliateur=self.c, start=timezone.now() + timedelta(days=5), end=timezone.now() + timedelta(days=5, hours=1), location="x")
+        self.appt = Appointment.objects.create(user=self.plaignant, slot=self.taken, first_name="Alice", last_name="Durand", phone="0612345678", motive="m")
+
+    def test_slots_show_booking_state(self):
+        by_id = {s["id"]: s for s in self.api.get("/api/v1/me/slots").json()}
+        self.assertEqual((by_id[self.free.id]["is_booked"], by_id[self.free.id]["appointment"]), (False, None))
+        self.assertEqual(by_id[self.taken.id]["appointment"]["last_name"], "Durand")
+
+    def test_cancelled_appointment_frees_the_slot_in_the_calendar(self):
+        self.appt.status = Appointment.Status.CANCELLED
+        self.appt.save()
+        self.assertFalse(any(s["is_booked"] for s in self.api.get("/api/v1/me/slots").json()))
+
+    def test_date_range_and_single_query_for_the_list(self):
+        window = {"from": (timezone.now() + timedelta(days=4)).isoformat(), "to": (timezone.now() + timedelta(days=6)).isoformat()}
+        self.assertEqual([s["id"] for s in self.api.get("/api/v1/me/slots", window).json()], [self.taken.id])
+        with self.assertNumQueries(2):  # slots + prefetched appointments, whatever the number of slots
+            self.api.get("/api/v1/me/slots")

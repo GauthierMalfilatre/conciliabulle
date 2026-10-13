@@ -1,4 +1,5 @@
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from .models import Availability, ConciliateurProfile, Slot
@@ -49,3 +50,37 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = ConciliateurProfile
         fields = ("city", "department", "bio", "instructions", "is_verified")
         read_only_fields = ("is_verified",)
+
+
+class MySlotSerializer(SlotSerializer):
+    """A slot as the conciliateur sees it in their calendar: free, or booked by someone."""
+
+    is_booked = serializers.SerializerMethodField()
+    appointment = serializers.SerializerMethodField()
+
+    class Meta(SlotSerializer.Meta):
+        fields = SlotSerializer.Meta.fields + ("is_booked", "appointment")
+
+    def _booked(self, slot):
+        # In Python so that a prefetch of "appointments" serves the whole list in one query.
+        return next((a for a in slot.appointments.all() if a.status == "BOOKED"), None)
+
+    def get_is_booked(self, slot) -> bool:
+        return self._booked(slot) is not None
+
+    @extend_schema_field(
+        inline_serializer(
+            "SlotAppointment",
+            {
+                "id": serializers.IntegerField(),
+                "first_name": serializers.CharField(),
+                "last_name": serializers.CharField(),
+                "phone": serializers.CharField(),
+                "motive": serializers.CharField(),
+            },
+            allow_null=True,
+        )
+    )
+    def get_appointment(self, slot):
+        a = self._booked(slot)
+        return a and {"id": a.id, "first_name": a.first_name, "last_name": a.last_name, "phone": a.phone, "motive": a.motive}

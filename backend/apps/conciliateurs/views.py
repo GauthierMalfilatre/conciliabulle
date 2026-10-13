@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView, RetrieveUpdateAPIView
 
@@ -106,7 +106,7 @@ class MySlotDeleteView(DestroyAPIView):
         try:
             instance.delete()
         except ProtectedError:
-            raise Conflict("This slot has appointments and cannot be deleted.")
+            raise Conflict("This slot has appointments and cannot be deleted.") from None
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

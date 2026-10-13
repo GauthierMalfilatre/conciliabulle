@@ -1,5 +1,5 @@
 """Minimal RFC 5545 (iCalendar) writer: enough for a read-only appointments feed."""
-from datetime import timezone as dt_timezone
+from datetime import UTC
 
 
 def _escape(text):
@@ -21,7 +21,7 @@ def _fold(line):
 
 
 def _utc(dt):
-    return dt.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def build_calendar(appointments, name):

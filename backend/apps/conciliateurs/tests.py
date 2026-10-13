@@ -1,5 +1,4 @@
-from datetime import date, datetime, time, timedelta
-from datetime import timezone as dt_timezone
+from datetime import UTC, date, datetime, time, timedelta
 from io import StringIO
 from zoneinfo import ZoneInfo
 
@@ -9,7 +8,6 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-
 from apps.appointments.models import Appointment
 
 from . import services
@@ -187,14 +185,14 @@ class AvailabilityTests(TestCase):
 
     def test_dst_change_keeps_local_time(self):
         rule = Availability.objects.create(conciliateur=self.c, weekday=0, start_time=time(9), end_time=time(10), location="x", valid_from=date(2030, 3, 18), valid_until=date(2030, 4, 8))
-        services.materialize(rule, now=datetime(2030, 3, 15, tzinfo=dt_timezone.utc))
+        services.materialize(rule, now=datetime(2030, 3, 15, tzinfo=UTC))
         utc_hours = {s.start.date().isoformat(): s.start.hour for s in self.c.slots.all()}
         # Paris switches to summer time on 2030-03-31: 09:00 local = 08:00Z before, 07:00Z after.
         self.assertEqual(utc_hours, {"2030-03-18": 8, "2030-03-25": 8, "2030-04-01": 7, "2030-04-08": 7})
 
     def test_deleted_slot_is_not_regenerated_but_horizon_is_extended(self):
         rule = Availability.objects.create(conciliateur=self.c, weekday=0, start_time=time(9), end_time=time(10), location="x")
-        now = datetime(2030, 1, 1, tzinfo=dt_timezone.utc)
+        now = datetime(2030, 1, 1, tzinfo=UTC)
         services.materialize(rule, now=now)
         first = self.c.slots.first()
         first.delete()

@@ -56,13 +56,14 @@ curl -X POST $API/appointments -H "Authorization: Bearer $USER_ACCESS" -H 'Conte
 Toutes les routes protégées attendent `Authorization: Bearer <access>`. Le token d'accès expire : renouvelle-le avec `POST /auth/refresh`. Le rôle (`USER` ou `CONCILIATEUR`) est dans le token et dans `GET /me`.
 
 ## Règles à connaître côté front
+- **CORS** : l'API accepte les appels navigateur depuis `http://localhost:3000` (et `127.0.0.1:3000`). Un autre port ou domaine : variable d'environnement `CORS_ALLOWED_ORIGINS` (séparés par des virgules), ex. `CORS_ALLOWED_ORIGINS=http://localhost:5173 python manage.py runserver`.
 - **Annuler ou changer** un rendez-vous est refusé (400) à moins de 24h de son début.
 - **Créneau déjà pris** : 409. Rafraîchis la liste des créneaux libres.
 - Un conciliateur ne peut pas réserver (403) ; un utilisateur ne peut pas gérer de créneaux (403).
 - Les dates sont en UTC (ISO 8601).
 
 ## Limites connues
-CORS n'est pas encore configuré (un front sur un autre port sera bloqué par le navigateur), pas de rate limiting, pas d'e-mails/SMS, `SECRET_KEY`/`DEBUG` en dur. Voir [`.claude/CLAUDE.md`](.claude/CLAUDE.md) pour la liste complète, et ouvre une issue si ça te bloque.
+Pas de rate limiting, pas d'e-mails/SMS, `SECRET_KEY`/`DEBUG` en dur. Voir [`.claude/CLAUDE.md`](.claude/CLAUDE.md) pour la liste complète, et ouvre une issue si ça te bloque.
 
 ## Aller plus loin
 - [CONTRIBUTING.md](CONTRIBUTING.md) : comment proposer une modification (branches, commits, PR)

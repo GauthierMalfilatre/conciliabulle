@@ -70,8 +70,9 @@ Et aussi :
 ## 6. Contribuer côté front
 Le frontend n'existe pas encore : tu peux le démarrer dans un dossier `frontend/` (ouvre d'abord une issue pour qu'on s'accorde sur la stack).
 - Le contrat de l'API est le schéma OpenAPI (`/api/schema/`) : génère-en un client typé plutôt que d'écrire les appels à la main.
+- Le front de dev doit tourner sur le port **3000** (seule origine autorisée par CORS par défaut, voir le README).
 - Lance l'API avec `--authorize-all=yes` pour avoir des conciliateurs à afficher sans passer par l'admin.
-- Il manque un besoin côté API (champ, route, CORS…) ? Ouvre une issue **« API »** décrivant l'écran qui en a besoin, ou une PR backend si tu t'en sens capable.
+- Il manque un besoin côté API (champ, route…) ? Ouvre une issue **« API »** décrivant l'écran qui en a besoin, ou une PR backend si tu t'en sens capable.
 - L'interface doit mettre en avant le parcours conciliateur : un gros bouton **« JE SUIS UN CONCILIATEUR »** mène à son inscription/connexion, distincte de celle des utilisateurs.
 
 ## 7. Signaler un bug ou proposer une idée

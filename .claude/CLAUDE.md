@@ -15,7 +15,7 @@ Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCI
 MIT (`LICENSE`), © 2026 Gauthier Malfilatre, Alexis Variot, Arthur Aubry. Les contributions sont publiées sous cette licence (voir `CONTRIBUTING.md`).
 
 ## Stack
-Python 3.14 (venv `.venv` à la racine), Django 6.1, DRF 3.18, simplejwt (JWT stateless), drf-spectacular (Swagger), sqlite3 (`backend/db.sqlite3`, ignoré par git).
+Python 3.14 (venv `.venv` à la racine), Django 6.1, DRF 3.18, simplejwt (JWT stateless), drf-spectacular (Swagger), django-cors-headers, sqlite3 (`backend/db.sqlite3`, ignoré par git).
 
 ## Commandes (depuis `backend/`)
 ```bash
@@ -63,10 +63,11 @@ Codes : 409 créneau déjà pris ; 400 hors fenêtre, déjà annulé ou créneau
 - Stateless : pas de session, pas de logout serveur.
 
 ## Pièges connus
+- CORS : `CorsMiddleware` doit rester avant `CommonMiddleware`. Origines autorisées = `CORS_ALLOWED_ORIGINS` (env, séparées par des virgules ; défaut `localhost:3000` et `127.0.0.1:3000`). Ne jamais mettre `CORS_ALLOW_ALL_ORIGINS`.
 - `apps.conciliateurs` doit rester **en premier** dans `INSTALLED_APPS` : sa commande `runserver` doit passer avant celle de `staticfiles`.
 - `AppointmentSerializer.Meta.validators = []` est voulu : sinon DRF renvoie 400 au lieu de 409 sur un créneau pris.
 - Les vues qui utilisent `request.user` dans `get_queryset` testent `swagger_fake_view` pour la génération du schéma.
 - Permissions par défaut : `IsAuthenticated` ; les vues publiques déclarent `AllowAny` + `authentication_classes = []`.
 
 ## Pas encore fait
-Annulation par le conciliateur, e-mails/SMS, fuseaux horaires (UTC seulement), disponibilités récurrentes, recherche (ville/spécialité), rate limiting, `SECRET_KEY`/`DEBUG`/`ALLOWED_HOSTS` en variables d'environnement, CORS, frontend.
+Annulation par le conciliateur, e-mails/SMS, fuseaux horaires (UTC seulement), disponibilités récurrentes, recherche (ville/spécialité), rate limiting, `SECRET_KEY`/`DEBUG`/`ALLOWED_HOSTS` en variables d'environnement, frontend.

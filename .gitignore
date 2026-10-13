@@ -1,2 +1,12 @@
 # IDE Folders
 .idea/
+
+# Python env
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+
+# SQLite db
+db.sqlite3

@@ -26,7 +26,7 @@ class Command(BaseCommand):
         try:
             profile.clean_fields(exclude=["user"])
         except ValidationError as e:
-            raise CommandError(e)
+            raise CommandError(e) from e
         with transaction.atomic():
             user = User.objects.create_user(email, password, role=User.Role.CONCILIATEUR, first_name=first_name, last_name=last_name)
             profile.user = user

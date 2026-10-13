@@ -95,7 +95,8 @@ Toutes les routes protégées attendent `Authorization: Bearer <access>`. Le tok
 Pas de SMS, pas de contenu « modalités de recrutement » côté API (à mettre dans le front), pas d'annulation par le conciliateur, `SECRET_KEY`/`DEBUG` en dur. Voir [`.claude/CLAUDE.md`](.claude/CLAUDE.md) pour la liste complète, et ouvre une issue si ça te bloque.
 
 ## Aller plus loin
-- [CONTRIBUTING.md](CONTRIBUTING.md) : comment proposer une modification (branches, commits, PR)
+- [CONTRIBUTING.md](CONTRIBUTING.md) : comment proposer une modification (branches, commits, PR, CI)
+- [SECURITY.md](SECURITY.md) : signaler une faille
 - [backend/README.md](backend/README.md) : commandes backend et schéma de la base de données
 - [.claude/CLAUDE.md](.claude/CLAUDE.md) : architecture détaillée, routes et règles métier
 

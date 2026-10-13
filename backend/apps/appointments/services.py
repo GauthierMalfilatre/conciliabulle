@@ -31,7 +31,7 @@ def book(user, slot, **details):
         with transaction.atomic():
             appointment = Appointment.objects.create(user=user, slot=slot, **details)
     except IntegrityError:
-        raise SlotTaken
+        raise SlotTaken from None
     notifications.notify_conciliateur(notifications.Kind.APPOINTMENT_BOOKED, appointment)
     return appointment
 
@@ -66,7 +66,7 @@ def update(appointment, slot=None, **details):
         with transaction.atomic():
             appointment.save()
     except IntegrityError:
-        raise SlotTaken
+        raise SlotTaken from None
     kind = notifications.Kind
     if appointment.slot.conciliateur_id != old_slot.conciliateur_id:
         # Moved to another conciliateur: the first one loses it, the second one gains it.

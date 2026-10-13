@@ -34,6 +34,7 @@ Tout réglage dépendant de l'environnement vient de variables d'environnement, 
 ../.venv/bin/python manage.py create_conciliateur EMAIL --password X --city Lyon --department 69   # pas d'inscription publique ; --unverified possible
 ../.venv/bin/python manage.py seed_demo [--reset]            # jeu de données de test (comptes @demo.fr, mdp Demo-pass-2026!, DEBUG uniquement)
 ../.venv/bin/python manage.py makemigrations                 # après modif d'un modèle ; commiter la migration
+../.venv/bin/ruff check .                                     # lint (pip install -r requirements-dev.txt) ; la CI le lance
 ../.venv/bin/python manage.py test
 ../.venv/bin/python manage.py spectacular --validate --fail-on-warn   # le schéma OpenAPI doit rester sans warning
 ```
@@ -86,6 +87,9 @@ Codes : 409 créneau déjà pris ; 400 hors fenêtre, déjà annulé, créneau p
 - Disponibilités récurrentes : l'heure est locale (`LOCAL_TIME_ZONE`=Europe/Paris, gère l'heure d'été), expansée en `Slot` sur `AVAILABILITY_HORIZON_WEEKS` (8) semaines. Pas de cron : `services.extend_rules()` prolonge paresseusement à chaque consultation des créneaux/annuaire. `generated_until` évite de recréer un créneau supprimé à la main.
 - Export calendrier : le flux `.ics` n'a pas de JWT (les clients calendrier n'en envoient pas) ; le token secret de `ConciliateurProfile.calendar_token` est le seul secret, créé au premier appel de `GET me/calendar`.
 - Stateless : pas de session, pas de logout serveur.
+
+## CI et dépôt
+`.github/workflows/ci.yml` (sur chaque PR et push sur `main`) : ruff, `manage.py check`, `makemigrations --check`, validation du schéma OpenAPI (publié en artefact `openapi-schema` pour le front), tests, build de l'image Docker. Dependabot (pip, Actions, Docker) : `.github/dependabot.yml`. Lint = `backend/ruff.toml` (pas de formateur ; E501 ignoré). Hooks optionnels : `.pre-commit-config.yaml`. Modèles d'issues dans `.github/ISSUE_TEMPLATE/`, `SECURITY.md`, `CODEOWNERS`. Avant de proposer une PR, lancer les mêmes commandes que la CI.
 
 ## Pièges connus
 - Les tests et toutes les commandes `manage.py` exigent `SECRET_KEY` (ou `DEBUG=true`) dans l'environnement ou `backend/.env` : `cp .env.example .env` après un clone. La clé en dur qui existait avant cette configuration est dans l'historique git : la considérer comme compromise.

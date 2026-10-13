@@ -1,5 +1,4 @@
-from datetime import timedelta
-from datetime import timezone as dt_timezone
+from datetime import UTC, timedelta
 
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
@@ -169,7 +168,7 @@ class CalendarExportTests(AppointmentTestCase):
     def test_dates_are_utc(self):
         self.book()
         text = APIClient().get(self.feed_url()).content.decode()
-        self.assertIn("DTSTART:" + self.slot.start.astimezone(dt_timezone.utc).strftime("%Y%m%dT%H%M%SZ"), text)
+        self.assertIn("DTSTART:" + self.slot.start.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ"), text)
 
     def test_rotate_invalidates_old_link(self):
         api = client_for(self.c.user)

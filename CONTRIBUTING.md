@@ -45,13 +45,17 @@ docs: explain how to generate a TypeScript client
 Changement cassant (route renommée, champ retiré) : ajoute `!` (`feat(accounts)!: ...`) et explique-le dans le corps du commit.
 
 ## 4. Avant d'ouvrir la PR : checklist
-Depuis `backend/` :
+La **CI** (GitHub Actions) rejoue tout ça sur chaque PR et bloque si quelque chose casse, mais mieux vaut le voir en local. Depuis `backend/` :
 
 ```bash
+pip install -r requirements-dev.txt                       # une fois (ajoute ruff)
+ruff check .                                              # lint (ruff check --fix corrige l'essentiel)
 python manage.py test                                     # tout passe
 python manage.py makemigrations --check --dry-run         # "No changes detected" (sinon commite la migration)
 python manage.py spectacular --validate --fail-on-warn    # le schéma OpenAPI reste valide
 ```
+
+Pour que le lint tourne tout seul à chaque commit : `pip install pre-commit && pre-commit install` (à la racine).
 
 Et aussi :
 - **Tests** : toute nouvelle règle ou route a ses tests (voir `apps/*/tests.py` pour le style).
@@ -77,7 +81,7 @@ Le frontend n'existe pas encore : tu peux le démarrer dans un dossier `frontend
 - L'interface doit mettre en avant le parcours conciliateur : un gros bouton **« JE SUIS UN CONCILIATEUR »** mène à son inscription/connexion, distincte de celle des utilisateurs.
 
 ## 7. Signaler un bug ou proposer une idée
-Ouvre une issue avec : ce que tu attendais, ce qui s'est passé, les étapes pour reproduire (requête curl ou capture Swagger).
+Ouvre une issue : des modèles t'aident (bug, ou besoin côté API pour le front). Pour une faille de sécurité, **pas d'issue publique** : voir [SECURITY.md](SECURITY.md). Une bonne issue contient : ce que tu attendais, ce qui s'est passé, les étapes pour reproduire (requête curl ou capture Swagger).
 
 ## 8. Licence
 En ouvrant une PR, tu acceptes que ta contribution soit publiée sous la [licence MIT](LICENSE) du projet.

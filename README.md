@@ -1,6 +1,6 @@
-# Justice Tech 2026 : prise de rendez-vous avec des conciliateurs de justice
+# ConciliaBulle
 
-Un « Doctolib » pour les conciliateurs de justice. Les justiciables (comptes **USER**) réservent, modifient et annulent des rendez-vous ; les **conciliateurs** publient leurs créneaux. Les deux sont des types de compte distincts.
+**Prise de rendez-vous avec des conciliateurs de justice.** ConciliaBulle est un « Doctolib » pour les conciliateurs. Les justiciables (comptes **USER**) réservent, modifient et annulent des rendez-vous ; les **conciliateurs** publient leurs créneaux. Les deux sont des types de compte distincts.
 
 | Dossier | Contenu | État |
 |---|---|---|

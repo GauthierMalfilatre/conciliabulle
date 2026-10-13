@@ -1,4 +1,4 @@
-# Backend
+# ConciliaBulle : backend
 
 Django REST Framework API, stateless (JWT), sqlite3.
 

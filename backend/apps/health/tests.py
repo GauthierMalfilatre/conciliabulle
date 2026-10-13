@@ -20,6 +20,9 @@ class HealthDbDownTests(SimpleTestCase):
 
 
 class DocsTests(TestCase):
+    def test_schema_carries_the_project_name(self):
+        self.assertEqual(self.client.get("/api/schema/?format=json").json()["info"]["title"], "ConciliaBulle API")
+
     def test_swagger_and_schema(self):
         self.assertEqual(self.client.get("/api/docs/").status_code, 200)
         self.assertIn("/api/v1/health", self.client.get("/api/schema/?format=json").json()["paths"])

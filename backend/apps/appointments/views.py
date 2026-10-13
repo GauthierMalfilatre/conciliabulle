@@ -92,7 +92,7 @@ class CalendarFeedView(APIView):
         c = get_object_or_404(ConciliateurProfile.objects.select_related("user"), calendar_token=token)
         since = timezone.now() - timedelta(days=30)
         appointments = Appointment.objects.filter(slot__conciliateur=c, status=Appointment.Status.BOOKED, slot__start__gte=since).select_related("slot")
-        return Response(ics.build_calendar(appointments, "Rendez-vous conciliateur"))
+        return Response(ics.build_calendar(appointments, "ConciliaBulle : rendez-vous"))
 
 
 _calendar_link = extend_schema(tags=["Calendrier"], request=None, responses=inline_serializer("CalendarLink", {"url": serializers.URLField()}))

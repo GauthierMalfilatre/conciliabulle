@@ -1,4 +1,4 @@
-# Contribuer
+# Contribuer à ConciliaBulle
 
 Merci de vouloir aider ! Les contributions passent toutes par une **Pull Request vers `main`**.
 

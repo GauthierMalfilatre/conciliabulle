@@ -163,6 +163,8 @@ class CalendarExportTests(AppointmentTestCase):
         self.assertEqual(text.count("BEGIN:VEVENT"), 1)
         self.assertTrue(text.startswith("BEGIN:VCALENDAR\r\n") and text.endswith("END:VCALENDAR\r\n"))
         self.assertIn("SUMMARY:Rendez-vous : Alice Durand", text)
+        self.assertIn("PRODID:-//ConciliaBulle//", text)
+        self.assertIn("X-WR-CALNAME:ConciliaBulle : rendez-vous", text)
         self.assertIn("Téléphone : +33 6 12 34 56 78", text.replace("\\", "").replace("\r\n ", ""))
 
     def test_dates_are_utc(self):

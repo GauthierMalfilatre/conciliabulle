@@ -1,4 +1,6 @@
 # Production-like local run:  cp backend/.env.example backend/.env  &&  docker compose up --build
+name: conciliabulle
+
 services:
   api:
     build: ./backend

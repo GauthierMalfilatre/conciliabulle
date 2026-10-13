@@ -194,3 +194,14 @@ class IcsFormatTests(SimpleTestCase):
         for line in folded.split("\r\n"):
             self.assertLessEqual(len(line.encode()), 75)
         self.assertEqual(folded.replace("\r\n ", ""), "X:" + "é" * 100)  # lossless, no split character
+
+
+class InstructionsTests(AppointmentTestCase):
+    def test_default_then_custom_instructions(self):
+        from django.conf import settings
+
+        self.assertEqual(self.book().json()["instructions"], settings.DEFAULT_APPOINTMENT_INSTRUCTIONS)
+        r = client_for(self.c.user).patch("/api/v1/me/profile", {"instructions": "Apportez votre pièce d'identité."}, format="json")
+        self.assertEqual(r.status_code, 200)
+        listing = self.api.get("/api/v1/appointments").json()
+        self.assertEqual(listing[0]["instructions"], "Apportez votre pièce d'identité.")

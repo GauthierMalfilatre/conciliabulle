@@ -225,3 +225,16 @@ class AvailabilityTests(TestCase):
         other = client_for(make_conciliateur("o@b.fr").user)
         rid = self.api.post("/api/v1/me/availabilities", self.rule, format="json").json()["id"]
         self.assertEqual(other.delete(f"/api/v1/me/availabilities/{rid}").status_code, 404)
+
+
+class ProfileTests(TestCase):
+    def test_conciliateur_reads_and_edits_own_profile_but_not_verification(self):
+        c = make_conciliateur()
+        api = client_for(c.user)
+        r = api.patch("/api/v1/me/profile", {"bio": "Ancien magistrat", "is_verified": False, "department": "13"}, format="json")
+        self.assertEqual((r.status_code, r.json()["bio"], r.json()["department"]), (200, "Ancien magistrat", "13"))
+        c.refresh_from_db()
+        self.assertTrue(c.is_verified)  # read-only
+
+    def test_plain_user_refused(self):
+        self.assertEqual(client_for(User.objects.create_user("u@b.fr", "pw")).get("/api/v1/me/profile").status_code, 403)

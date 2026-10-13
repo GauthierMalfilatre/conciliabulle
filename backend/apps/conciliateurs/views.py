@@ -8,12 +8,12 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.exceptions import APIException, ValidationError
-from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView
+from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView, RetrieveUpdateAPIView
 
 from . import services
 from .models import Availability, ConciliateurProfile, Slot
 from .permissions import IsConciliateur
-from .serializers import AvailabilitySerializer, ConciliateurSerializer, SlotSerializer
+from .serializers import AvailabilitySerializer, ConciliateurSerializer, ProfileSerializer, SlotSerializer
 
 
 class Conflict(APIException):
@@ -136,3 +136,15 @@ class MyAvailabilityDeleteView(DestroyAPIView):
     def perform_destroy(self, instance):
         instance.slots.filter(start__gt=timezone.now()).exclude(appointments__isnull=False).delete()
         instance.delete()  # slots with appointments stay, detached from the rule
+
+
+@extend_schema(tags=["Account"])
+class MyProfileView(RetrieveUpdateAPIView):
+    """The conciliateur's own profile, including the instructions shown to plaignants after booking."""
+
+    serializer_class = ProfileSerializer
+    permission_classes = [IsConciliateur]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_object(self):
+        return self.request.user.conciliateur

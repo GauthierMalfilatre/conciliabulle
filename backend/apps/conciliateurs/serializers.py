@@ -42,3 +42,10 @@ class AvailabilitySerializer(serializers.ModelSerializer):
         if data.get("valid_from") and data.get("valid_until") and data["valid_until"] < data["valid_from"]:
             raise serializers.ValidationError("valid_until must not be before valid_from")
         return data
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConciliateurProfile
+        fields = ("city", "department", "bio", "instructions", "is_verified")
+        read_only_fields = ("is_verified",)

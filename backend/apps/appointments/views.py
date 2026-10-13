@@ -31,7 +31,7 @@ class AppointmentListCreateView(ListCreateAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Appointment.objects.none()
-        return self.request.user.appointments.select_related("slot")
+        return self.request.user.appointments.select_related("slot__conciliateur")
 
     def perform_create(self, serializer):
         d = dict(serializer.validated_data)
@@ -47,7 +47,7 @@ class AppointmentDetailView(RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Appointment.objects.none()
-        return self.request.user.appointments.select_related("slot")
+        return self.request.user.appointments.select_related("slot__conciliateur")
 
     def perform_update(self, serializer):
         d = dict(serializer.validated_data)
@@ -67,7 +67,7 @@ class MyAppointmentListView(ListAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Appointment.objects.none()
-        return Appointment.objects.filter(slot__conciliateur=self.request.user.conciliateur).select_related("slot")
+        return Appointment.objects.filter(slot__conciliateur=self.request.user.conciliateur).select_related("slot__conciliateur")
 
 
 class ICalRenderer(BaseRenderer):

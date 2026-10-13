@@ -18,6 +18,8 @@ class ConciliateurProfile(models.Model):
     city = models.CharField(max_length=100)
     department = models.CharField(max_length=3, db_index=True, validators=[department_validator])
     bio = models.TextField(blank=True)
+    # Shown to the plaignant once the appointment is booked; empty = settings.DEFAULT_APPOINTMENT_INSTRUCTIONS.
+    instructions = models.TextField(blank=True)
     # Real conciliateurs are appointed officially: an admin validates them.
     is_verified = models.BooleanField(default=False)
     # Secret in the URL of the .ics feed (calendar apps cannot send a JWT). Created on first use.
@@ -25,6 +27,10 @@ class ConciliateurProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.email} ({self.city})"
+
+    @property
+    def appointment_instructions(self):
+        return self.instructions or settings.DEFAULT_APPOINTMENT_INSTRUCTIONS
 
 
 class Availability(models.Model):

@@ -174,3 +174,6 @@ CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:
 # Recurring availabilities are expressed in local time and expanded into slots this many weeks ahead.
 LOCAL_TIME_ZONE = "Europe/Paris"
 AVAILABILITY_HORIZON_WEEKS = 8
+
+# Shown to the plaignant after booking, unless the conciliateur wrote their own.
+DEFAULT_APPOINTMENT_INSTRUCTIONS = "Venez avec tout document pouvant être utile à votre dossier."

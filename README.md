@@ -23,6 +23,15 @@ python manage.py runserver
 - **Schéma OpenAPI** (pour générer un client TypeScript, etc.) : <http://localhost:8000/api/schema/>
 - **Health check** : <http://localhost:8000/api/v1/health>
 
+### Jeu de données de test
+
+```bash
+python manage.py seed_demo            # crée conciliateurs, plaignants, créneaux, rendez-vous, notifications, candidatures
+python manage.py seed_demo --reset    # supprime les données de démo (comptes en @demo.fr) puis les recrée
+```
+
+Tous les comptes ont le mot de passe `Demo-pass-2026!` (la commande affiche la liste, ex. `alice.durand@demo.fr`, `jean.martin@demo.fr`, `admin@demo.fr`). Un des conciliateurs est volontairement non vérifié. La commande refuse de tourner si `DEBUG` est désactivé.
+
 ### Tester sans attendre la validation d'un conciliateur
 
 Il n'y a pas d'inscription publique pour les conciliateurs : un admin les crée (`create_conciliateur`, ou l'admin Django `/admin/`) et les valide. Pour développer sans cette étape, lance :

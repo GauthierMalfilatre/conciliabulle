@@ -8,6 +8,7 @@ python manage.py migrate
 python manage.py runserver                      # Swagger: http://localhost:8000/api/docs/
 python manage.py runserver --authorize-all=yes  # testing: unverified conciliateurs are visible/bookable
 python manage.py test
+python manage.py seed_demo [--reset]            # demo dataset, accounts @demo.fr, password Demo-pass-2026! (DEBUG only)
 ```
 
 Conciliateurs have no public registration: create them with

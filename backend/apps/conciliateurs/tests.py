@@ -264,3 +264,35 @@ class MyCalendarTests(TestCase):
         self.assertEqual([s["id"] for s in self.api.get("/api/v1/me/slots", window).json()], [self.taken.id])
         with self.assertNumQueries(2):  # slots + prefetched appointments, whatever the number of slots
             self.api.get("/api/v1/me/slots")
+
+
+@override_settings(DEBUG=True)
+class SeedDemoTests(TestCase):
+    def seed(self, **kw):
+        call_command("seed_demo", stdout=StringIO(), **kw)
+
+    def test_seed_creates_a_usable_dataset(self):
+        self.seed()
+        r = self.client.post("/api/v1/auth/login", {"email": "alice.durand@demo.fr", "password": "Demo-pass-2026!"}, content_type="application/json")
+        api = client_for(User.objects.get(email="alice.durand@demo.fr"))
+        self.assertEqual(r.status_code, 200)
+        lyon = [c["last_name"] for c in api.get("/api/v1/conciliateurs?department=69").json()]
+        self.assertCountEqual(lyon, ["Martin", "Bernard"])  # the unverified one stays hidden
+        self.assertTrue(ConciliateurProfile.objects.filter(is_verified=False).exists())
+        self.assertEqual(Appointment.objects.filter(status="CANCELLED").count(), 1)
+        self.assertGreater(Appointment.objects.filter(status="BOOKED").count(), 5)
+
+    def test_second_run_needs_reset_and_reset_is_clean(self):
+        self.seed()
+        with self.assertRaises(CommandError):
+            self.seed()
+        stranger = User.objects.create_user("real@example.fr", "pw")
+        self.seed(reset=True)
+        self.assertEqual(User.objects.filter(email__endswith="@demo.fr").count(), 1 + 6 + 5)  # admin + conciliateurs + plaignants
+        self.assertTrue(User.objects.filter(pk=stranger.pk).exists())  # only demo accounts are touched
+
+    @override_settings(DEBUG=False)
+    def test_refuses_when_debug_is_off(self):
+        with self.assertRaises(CommandError):
+            self.seed()
+        self.assertFalse(User.objects.exists())

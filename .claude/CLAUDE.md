@@ -29,6 +29,7 @@ Python 3.14 (venv `.venv` à la racine), Django 6.1, DRF 3.18, simplejwt (JWT st
 ../.venv/bin/python manage.py runserver                      # Swagger : /api/docs/
 ../.venv/bin/python manage.py runserver --authorize-all=yes  # test : conciliateurs non vérifiés visibles/réservables
 ../.venv/bin/python manage.py create_conciliateur EMAIL --password X --city Lyon --department 69   # pas d'inscription publique ; --unverified possible
+../.venv/bin/python manage.py seed_demo [--reset]            # jeu de données de test (comptes @demo.fr, mdp Demo-pass-2026!, DEBUG uniquement)
 ../.venv/bin/python manage.py makemigrations                 # après modif d'un modèle ; commiter la migration
 ../.venv/bin/python manage.py test
 ../.venv/bin/python manage.py spectacular --validate --fail-on-warn   # le schéma OpenAPI doit rester sans warning
@@ -40,7 +41,7 @@ Un module = un dossier dans `apps/`. `config/` = settings, urls racine.
 |---|---|
 | `apps/health` | `GET /api/v1/health` (état API + base ; 503 si base KO) |
 | `apps/accounts` | `User` custom (login par email, `role`), register/login/refresh/me, permission `IsPlainUser` |
-| `apps/conciliateurs` | `ConciliateurProfile` (`department`, `is_verified`, `calendar_token`, `instructions`), `Availability` (récurrence), `Slot` (`location`), annuaire + filtres, `services.py` (génération des créneaux), commandes `runserver` (surchargée) et `create_conciliateur`, permission `IsConciliateur` |
+| `apps/conciliateurs` | `ConciliateurProfile` (`department`, `is_verified`, `calendar_token`, `instructions`), `Availability` (récurrence), `Slot` (`location`), annuaire + filtres, `services.py` (génération des créneaux), commandes `runserver` (surchargée), `create_conciliateur` et `seed_demo` (données de démo ; garder `DOMAIN`/`--reset` limités aux comptes `@demo.fr`), permission `IsConciliateur` |
 | `apps/appointments` | `Appointment` (contact du plaignant), `services.py` (book / update / cancel + règles), `ics.py` (export iCalendar) |
 | `apps/notifications` | `Notification` (alertes in-app du conciliateur), `services.notify_conciliateur` (crée la notification + e-mail après commit) ; appelé par `appointments.services` |
 | `apps/candidatures` | `Candidature` : demandes pour devenir conciliateur (route publique limitée, traitées dans l'admin) |

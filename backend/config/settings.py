@@ -143,6 +143,14 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Prise de rendez-vous avec des conciliateurs de justice.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "TAGS": [
+        {"name": "Auth", "description": "Inscription (utilisateur ou conciliateur), connexion, refresh du token."},
+        {"name": "Account", "description": "Compte de la personne connectée."},
+        {"name": "Conciliateurs", "description": "Annuaire des conciliateurs et leurs créneaux libres."},
+        {"name": "Créneaux", "description": "Gestion de ses créneaux (conciliateur)."},
+        {"name": "Rendez-vous", "description": "Prendre, modifier, annuler un rendez-vous."},
+        {"name": "Health", "description": "État de l'API."},
+    ],
 }
 
 AUTH_USER_MODEL = 'accounts.User'

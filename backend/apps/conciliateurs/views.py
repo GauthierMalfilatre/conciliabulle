@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -14,12 +15,14 @@ class Conflict(APIException):
     status_code = 409
 
 
+@extend_schema(tags=["Auth"])
 class ConciliateurRegisterView(CreateAPIView):
     serializer_class = ConciliateurRegisterSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
 
 
+@extend_schema(tags=["Conciliateurs"])
 class ConciliateurListView(ListAPIView):
     serializer_class = ConciliateurSerializer
 
@@ -27,6 +30,7 @@ class ConciliateurListView(ListAPIView):
         return ConciliateurProfile.objects.visible().select_related("user")
 
 
+@extend_schema(tags=["Conciliateurs"])
 class FreeSlotListView(ListAPIView):
     serializer_class = SlotSerializer
 
@@ -35,6 +39,7 @@ class FreeSlotListView(ListAPIView):
         return c.slots.filter(start__gt=timezone.now()).exclude(appointments__status="BOOKED")
 
 
+@extend_schema(tags=["Créneaux"])
 class MySlotListCreateView(ListCreateAPIView):
     serializer_class = SlotSerializer
     permission_classes = [IsConciliateur]
@@ -48,6 +53,7 @@ class MySlotListCreateView(ListCreateAPIView):
         serializer.save(conciliateur=self.request.user.conciliateur)
 
 
+@extend_schema(tags=["Créneaux"])
 class MySlotDeleteView(DestroyAPIView):
     permission_classes = [IsConciliateur]
     serializer_class = SlotSerializer

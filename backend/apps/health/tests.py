@@ -23,3 +23,8 @@ class DocsTests(TestCase):
     def test_swagger_and_schema(self):
         self.assertEqual(self.client.get("/api/docs/").status_code, 200)
         self.assertIn("/api/v1/health", self.client.get("/api/schema/?format=json").json()["paths"])
+
+    def test_every_operation_is_tagged(self):
+        paths = self.client.get("/api/schema/?format=json").json()["paths"]
+        untagged = [p for p, ops in paths.items() for op in ops.values() if not op.get("tags")]
+        self.assertEqual(untagged, [])

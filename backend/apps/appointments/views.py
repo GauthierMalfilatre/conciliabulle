@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
@@ -9,6 +10,7 @@ from .models import Appointment
 from .serializers import AppointmentSerializer
 
 
+@extend_schema(tags=["Rendez-vous"])
 class AppointmentListCreateView(ListCreateAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsPlainUser]
@@ -23,6 +25,7 @@ class AppointmentListCreateView(ListCreateAPIView):
         serializer.instance = services.book(self.request.user, d["slot"], d.get("motive", ""))
 
 
+@extend_schema(tags=["Rendez-vous"])
 class AppointmentDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsPlainUser]
@@ -43,6 +46,7 @@ class AppointmentDetailView(RetrieveUpdateDestroyAPIView):
         services.cancel(instance)  # soft cancel: the row is kept
 
 
+@extend_schema(tags=["Rendez-vous"])
 class MyAppointmentListView(ListAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [IsConciliateur]

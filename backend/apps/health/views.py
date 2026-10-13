@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 
-@extend_schema(responses=OpenApiTypes.OBJECT)
+@extend_schema(tags=["Health"], responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([AllowAny])

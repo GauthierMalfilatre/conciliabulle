@@ -54,9 +54,11 @@ async function Detail({ params, searchParams }: { params: Promise<{ id: string }
                 {tel}
               </a>
             </SummaryRow>
-            <SummaryRow icon="message" label="Motif">
-              {a.motif || "Non précisé"}
-            </SummaryRow>
+            {a.motif && (
+              <SummaryRow icon="message" label="Motif">
+                {a.motif}
+              </SummaryRow>
+            )}
             <SummaryRow icon="mapPin" label="Lieu">
               {a.lieu}
             </SummaryRow>

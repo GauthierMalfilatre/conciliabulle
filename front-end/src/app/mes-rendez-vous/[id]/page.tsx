@@ -98,10 +98,12 @@ async function Detail({
           <SummaryRow icon="mapPin" label="Lieu">
             {a.lieu}
           </SummaryRow>
-          <SummaryRow icon="message" label="Motif">
-            {a.motif || "Non précisé"}
-          </SummaryRow>
-          <SummaryRow icon="users" label="Vos coordonnées">
+          {a.motif && (
+            <SummaryRow icon="message" label="Motif">
+              {a.motif}
+            </SummaryRow>
+          )}
+          <SummaryRow icon="users" label="Personne concernée">
             {a.contact.prenom} {a.contact.nom} · {a.contact.telephone}
           </SummaryRow>
           <SummaryRow icon="phone" label={a.conciliateur.telephone ? "Contacter le conciliateur" : "Une question ? Le service d'aide"}>

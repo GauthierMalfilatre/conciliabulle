@@ -83,15 +83,8 @@ export async function getAppointment(id: string) {
   return a ? toAppointment(a, directory) : null;
 }
 
-/** The contact details of the client's last booking, to fill in the next one. */
-export async function lastContact() {
-  const data = await api<ApiAppointment[]>("appointments");
-  const last = data.at(-1);
-  return last && { prenom: last.first_name, nom: last.last_name, telephone: last.phone };
-}
-
 /** POST appointments → 409 when the slot is taken. The appointment limit is a demo rule (Réglages du service). */
-export async function createAppointment(input: { slotId: string; prenom: string; nom: string; telephone: string; motif: string }) {
+export async function createAppointment(input: { slotId: string; prenom: string; nom: string; telephone: string }) {
   const max = platform().maxRdvAVenir;
   if (max > 0) {
     const upcoming = (await listMyAppointments("upcoming")).length;
@@ -102,7 +95,7 @@ export async function createAppointment(input: { slotId: string; prenom: string;
   try {
     const a = await api<ApiAppointment>("appointments", {
       method: "POST",
-      body: { slot_id: slot.slotId, first_name: input.prenom, last_name: input.nom, phone: input.telephone, motive: input.motif },
+      body: { slot_id: slot.slotId, first_name: input.prenom, last_name: input.nom, phone: input.telephone },
     });
     return { id: String(a.id) };
   } catch (e) {

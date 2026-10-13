@@ -18,7 +18,12 @@ export type SessionPayload = {
 };
 
 // Set SESSION_SECRET in production: without it, anyone could forge a session.
-const SECRET = process.env.SESSION_SECRET ?? "dev-only-secret-change-me";
+// Read when signing, not at import: `next build` runs without the production secret.
+function secret() {
+  const value = process.env.SESSION_SECRET ?? (process.env.NODE_ENV === "production" ? "" : "dev-only-secret-change-me");
+  if (!value) throw new Error("SESSION_SECRET is required in production.");
+  return value;
+}
 const encoder = new TextEncoder();
 
 function b64url(bytes: Uint8Array) {
@@ -26,7 +31,7 @@ function b64url(bytes: Uint8Array) {
 }
 
 async function hmac(data: string) {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret()), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return b64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(data))));
 }
 

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'apps.accounts',
     'apps.appointments',
+    'apps.candidatures',
     'apps.health',
 ]
 
@@ -138,6 +139,7 @@ MAILERS = {
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_THROTTLE_RATES": {"candidatures": "5/hour"},  # public endpoint: anti-spam
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -152,6 +154,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Conciliateurs", "description": "Annuaire des conciliateurs et leurs créneaux libres."},
         {"name": "Créneaux", "description": "Gestion de ses créneaux (conciliateur)."},
         {"name": "Rendez-vous", "description": "Prendre, modifier, annuler un rendez-vous."},
+        {"name": "Candidatures", "description": "Devenir conciliateur : déposer ses informations pour être recontacté par l'association du département."},
         {"name": "Health", "description": "État de l'API."},
     ],
 }

@@ -184,8 +184,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Conciliateurs API",
-    "DESCRIPTION": "Prise de rendez-vous avec des conciliateurs de justice.",
+    "TITLE": "ConciliaBulle API",
+    "DESCRIPTION": "ConciliaBulle : prise de rendez-vous avec des conciliateurs de justice.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
@@ -219,7 +219,7 @@ AVAILABILITY_HORIZON_WEEKS = 8
 # Shown to the plaignant after booking, unless the conciliateur wrote their own.
 DEFAULT_APPOINTMENT_INSTRUCTIONS = "Venez avec tout document pouvant être utile à votre dossier."
 
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@justice-tech.local")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@conciliabulle.local")
 
 # Production hardening (HTTPS is normally terminated by a proxy: enable what matches your setup).
 SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG

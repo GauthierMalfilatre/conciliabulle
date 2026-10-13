@@ -1,6 +1,7 @@
-# Projet : Doctolib-like pour conciliateurs de justice
+# ConciliaBulle : Doctolib-like pour conciliateurs de justice
 
 API REST (backend/) pour prendre, modifier et annuler des rendez-vous avec des conciliateurs de justice.
+Nom du projet : **ConciliaBulle** (le dépôt GitHub et le dossier local s'appellent encore `justice-tech-2026` : ne pas utiliser l'ancien nom dans le code, la doc ou les libellés).
 Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCILIATEUR »).
 
 ## Cahier des charges (résumé)

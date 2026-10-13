@@ -1,6 +1,6 @@
 # Sécurité
 
-Ce projet manipule des données personnelles (noms, téléphones, e-mails de plaignants et de conciliateurs).
+ConciliaBulle manipule des données personnelles (noms, téléphones, e-mails de plaignants et de conciliateurs).
 
 ## Signaler une faille
 **Ne publie pas la faille dans une issue ou une PR.** Utilise plutôt, par ordre de préférence :

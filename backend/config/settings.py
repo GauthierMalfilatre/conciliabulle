@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'apps.conciliateurs',  # first: its runserver command must override staticfiles'
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,7 +41,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'apps.accounts',
-    'apps.conciliateurs',
     'apps.health',
 ]
 

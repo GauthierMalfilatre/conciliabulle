@@ -94,3 +94,22 @@ class SlotTests(TestCase):
         other = client_for(make_conciliateur("o@b.fr").user)
         self.assertEqual(other.delete(f"/api/v1/me/slots/{slot.id}").status_code, 404)
         self.assertEqual(self.api.delete(f"/api/v1/me/slots/{slot.id}").status_code, 204)
+
+
+class RunserverFlagTests(TestCase):
+    base = "django.contrib.staticfiles.management.commands.runserver.Command.handle"
+
+    def run_flag(self, **kw):
+        from unittest import mock
+
+        from django.core.management import call_command
+
+        with override_settings(AUTHORIZE_ALL=False), mock.patch(self.base):
+            call_command("runserver", **kw)
+            from django.conf import settings
+
+            return settings.AUTHORIZE_ALL
+
+    def test_flag(self):
+        self.assertTrue(self.run_flag(authorize_all="yes"))
+        self.assertFalse(self.run_flag())

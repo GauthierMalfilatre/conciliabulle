@@ -11,6 +11,9 @@ Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCI
 - Chaque nouvelle vue doit avoir `@extend_schema(tags=[...])` (un test vérifie que tout est taggé) et apparaître proprement dans Swagger.
 - Réponses à l'utilisateur en français.
 
+## Licence
+MIT (`LICENSE`), © 2026 Gauthier Malfilatre, Alexis Variot, Arthur Aubry. Les contributions sont publiées sous cette licence (voir `CONTRIBUTING.md`).
+
 ## Stack
 Python 3.14 (venv `.venv` à la racine), Django 6.1, DRF 3.18, simplejwt (JWT stateless), drf-spectacular (Swagger), sqlite3 (`backend/db.sqlite3`, ignoré par git).
 

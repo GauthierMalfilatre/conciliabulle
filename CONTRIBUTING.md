@@ -76,3 +76,6 @@ Le frontend n'existe pas encore : tu peux le démarrer dans un dossier `frontend
 
 ## 7. Signaler un bug ou proposer une idée
 Ouvre une issue avec : ce que tu attendais, ce qui s'est passé, les étapes pour reproduire (requête curl ou capture Swagger).
+
+## 8. Licence
+En ouvrant une PR, tu acceptes que ta contribution soit publiée sous la [licence MIT](LICENSE) du projet.

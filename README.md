@@ -68,3 +68,6 @@ CORS n'est pas encore configuré (un front sur un autre port sera bloqué par le
 - [CONTRIBUTING.md](CONTRIBUTING.md) : comment proposer une modification (branches, commits, PR)
 - [backend/README.md](backend/README.md) : commandes backend et schéma de la base de données
 - [.claude/CLAUDE.md](.claude/CLAUDE.md) : architecture détaillée, routes et règles métier
+
+## Licence
+[MIT](LICENSE) © 2026 Gauthier Malfilatre, Alexis Variot, Arthur Aubry.

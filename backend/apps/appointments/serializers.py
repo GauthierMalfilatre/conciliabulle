@@ -13,6 +13,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Appointment
-        fields = ("id", "slot", "slot_id", "conciliateur_id", "status", "motive")
+        fields = ("id", "slot", "slot_id", "conciliateur_id", "status", "first_name", "last_name", "phone", "motive")
         read_only_fields = ("status",)
         validators = []  # double booking is handled in services.book (409)

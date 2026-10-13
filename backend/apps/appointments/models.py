@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 
 
@@ -10,6 +11,10 @@ class Appointment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="appointments")
     slot = models.ForeignKey("conciliateurs.Slot", on_delete=models.PROTECT, related_name="appointments")
     status = models.CharField(max_length=10, choices=Status, default=Status.BOOKED)
+    # Plaignant contact details, given at booking time (they may differ from the account's).
+    last_name = models.CharField(max_length=150)
+    first_name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=20, validators=[RegexValidator(r"^\+?[0-9][0-9 .()-]{5,18}$", "Invalid phone number.")])
     motive = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

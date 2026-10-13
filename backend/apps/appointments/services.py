@@ -24,11 +24,11 @@ def check_bookable(slot):
         raise SlotTaken
 
 
-def book(user, slot, motive=""):
+def book(user, slot, **details):
     check_bookable(slot)
     try:
         with transaction.atomic():
-            return Appointment.objects.create(user=user, slot=slot, motive=motive)
+            return Appointment.objects.create(user=user, slot=slot, **details)
     except IntegrityError:
         raise SlotTaken
 
@@ -47,14 +47,18 @@ def cancel(appointment):
     appointment.save(update_fields=["status"])
 
 
-def reschedule(appointment, slot):
+def update(appointment, slot=None, **details):
+    """Change the slot and/or the contact details/motive of a booked appointment."""
     check_changeable(appointment)
-    if slot.pk == appointment.slot_id:
-        raise ValidationError({"slot_id": "Already booked on this slot."})
-    check_bookable(slot)
-    appointment.slot = slot
+    if slot is not None:
+        if slot.pk == appointment.slot_id:
+            raise ValidationError({"slot_id": "Already booked on this slot."})
+        check_bookable(slot)
+        appointment.slot = slot
+    for field, value in details.items():
+        setattr(appointment, field, value)
     try:
         with transaction.atomic():
-            appointment.save(update_fields=["slot"])
+            appointment.save()
     except IntegrityError:
         raise SlotTaken

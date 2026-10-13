@@ -15,6 +15,9 @@ def make_slot(conciliateur, days=3, hours=0):
     return Slot.objects.create(conciliateur=conciliateur, start=start, end=start + timedelta(hours=1))
 
 
+CONTACT = {"first_name": "Alice", "last_name": "Durand", "phone": "+33 6 12 34 56 78"}
+
+
 class AppointmentTestCase(TestCase):
     def setUp(self):
         self.c = make_conciliateur()
@@ -23,7 +26,7 @@ class AppointmentTestCase(TestCase):
         self.api = client_for(self.user)
 
     def book(self, slot=None, api=None):
-        return (api or self.api).post("/api/v1/appointments", {"slot_id": (slot or self.slot).id, "motive": "voisinage"}, format="json")
+        return (api or self.api).post("/api/v1/appointments", {"slot_id": (slot or self.slot).id, "motive": "voisinage", **CONTACT}, format="json")
 
 
 class BookTests(AppointmentTestCase):
@@ -33,6 +36,19 @@ class BookTests(AppointmentTestCase):
         self.assertEqual(self.api.get(f"/api/v1/conciliateurs/{self.c.id}/slots").json(), [])
         self.assertEqual(len(self.api.get("/api/v1/appointments").json()), 1)
         self.assertEqual(len(client_for(self.c.user).get("/api/v1/me/appointments").json()), 1)
+
+    def test_contact_details_are_mandatory_and_validated(self):
+        for field in CONTACT:
+            body = {"slot_id": self.slot.id, **{k: v for k, v in CONTACT.items() if k != field}}
+            self.assertEqual(self.api.post("/api/v1/appointments", body, format="json").status_code, 400, field)
+        bad = {"slot_id": self.slot.id, **CONTACT, "phone": "abc"}
+        self.assertEqual(self.api.post("/api/v1/appointments", bad, format="json").status_code, 400)
+        self.assertFalse(Appointment.objects.exists())
+
+    def test_conciliateur_sees_plaignant_contact(self):
+        self.book()
+        appt = client_for(self.c.user).get("/api/v1/me/appointments").json()[0]
+        self.assertEqual({k: appt[k] for k in CONTACT}, CONTACT)
 
     def test_double_booking_is_409(self):
         self.book()
@@ -108,7 +124,7 @@ class RescheduleTests(AppointmentTestCase):
         self.assertEqual(self.patch(soon_id, make_slot(self.c, days=6)).status_code, 400)
         appt_id = self.book().json()["id"]
         self.assertEqual(self.patch(appt_id, self.slot).status_code, 400)
-        self.assertEqual(self.api.patch(f"/api/v1/appointments/{appt_id}", {}, format="json").status_code, 400)
+        self.assertEqual(self.api.patch(f"/api/v1/appointments/{appt_id}", {}, format="json").status_code, 400)  # nothing to change
         self.api.delete(f"/api/v1/appointments/{appt_id}")
         self.assertEqual(self.patch(appt_id, make_slot(self.c, days=7)).status_code, 400)
 
@@ -116,3 +132,14 @@ class RescheduleTests(AppointmentTestCase):
         appt_id = self.book().json()["id"]
         other = client_for(User.objects.create_user("o@b.fr", "pw"))
         self.assertEqual(self.patch(appt_id, make_slot(self.c, days=5), api=other).status_code, 404)
+
+
+class UpdateDetailsTests(AppointmentTestCase):
+    def test_patch_contact_without_changing_slot(self):
+        appt_id = self.book().json()["id"]
+        r = self.api.patch(f"/api/v1/appointments/{appt_id}", {"phone": "0612345678", "motive": "autre"}, format="json")
+        self.assertEqual((r.status_code, r.json()["phone"], r.json()["slot"]["id"]), (200, "0612345678", self.slot.id))
+
+    def test_patch_details_refused_inside_window(self):
+        appt_id = self.book(make_slot(self.c, days=0, hours=2)).json()["id"]
+        self.assertEqual(self.api.patch(f"/api/v1/appointments/{appt_id}", {"phone": "0612345678"}, format="json").status_code, 400)

@@ -21,8 +21,8 @@ class AppointmentListCreateView(ListCreateAPIView):
         return self.request.user.appointments.select_related("slot")
 
     def perform_create(self, serializer):
-        d = serializer.validated_data
-        serializer.instance = services.book(self.request.user, d["slot"], d.get("motive", ""))
+        d = dict(serializer.validated_data)
+        serializer.instance = services.book(self.request.user, d.pop("slot"), **d)
 
 
 @extend_schema(tags=["Rendez-vous"])
@@ -37,10 +37,10 @@ class AppointmentDetailView(RetrieveUpdateDestroyAPIView):
         return self.request.user.appointments.select_related("slot")
 
     def perform_update(self, serializer):
-        slot = serializer.validated_data.get("slot")
-        if slot is None:
-            raise ValidationError({"slot_id": "This field is required."})
-        services.reschedule(serializer.instance, slot)
+        d = dict(serializer.validated_data)
+        if not d:
+            raise ValidationError("Nothing to change.")
+        services.update(serializer.instance, d.pop("slot", None), **d)
 
     def perform_destroy(self, instance):
         services.cancel(instance)  # soft cancel: the row is kept

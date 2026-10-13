@@ -147,7 +147,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
-        {"name": "Auth", "description": "Inscription (utilisateur ou conciliateur), connexion, refresh du token."},
+        {"name": "Auth", "description": "Inscription des plaignants, connexion (plaignants et conciliateurs), refresh du token."},
         {"name": "Account", "description": "Compte de la personne connectée."},
         {"name": "Conciliateurs", "description": "Annuaire des conciliateurs et leurs créneaux libres."},
         {"name": "Créneaux", "description": "Gestion de ses créneaux (conciliateur)."},

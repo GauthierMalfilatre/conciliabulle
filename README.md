@@ -25,7 +25,7 @@ python manage.py runserver
 
 ### Tester sans attendre la validation d'un conciliateur
 
-Un conciliateur qui s'inscrit n'est pas visible tant qu'un admin ne l'a pas validé. Pour développer, lance :
+Il n'y a pas d'inscription publique pour les conciliateurs : un admin les crée (`create_conciliateur`, ou l'admin Django `/admin/`) et les valide. Pour développer sans cette étape, lance :
 
 ```bash
 python manage.py runserver --authorize-all=yes
@@ -38,9 +38,9 @@ Les conciliateurs non vérifiés deviennent alors visibles, réservables, et peu
 ```bash
 API=http://localhost:8000/api/v1
 
-# 1. Un conciliateur s'inscrit et se connecte
-curl -X POST $API/auth/conciliateur/register -H 'Content-Type: application/json' \
-  -d '{"email":"c@example.fr","password":"Mot-de-passe-solide-42","first_name":"Jean","last_name":"Martin","city":"Lyon"}'
+# 1. Un admin crée le conciliateur (pas d'inscription publique : les conciliateurs passent par l'association)
+python manage.py create_conciliateur c@example.fr --password 'Mot-de-passe-solide-42' \
+  --first-name Jean --last-name Martin --city Lyon      # vérifié par défaut ; --unverified pour l'inverse
 curl -X POST $API/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"c@example.fr","password":"Mot-de-passe-solide-42"}'      # -> {"access": "...", "refresh": "..."}
 

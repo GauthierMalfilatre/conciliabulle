@@ -3,23 +3,15 @@ from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException
-from rest_framework.generics import CreateAPIView, DestroyAPIView, ListAPIView, ListCreateAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView
 
 from .models import ConciliateurProfile, Slot
 from .permissions import IsConciliateur
-from .serializers import ConciliateurRegisterSerializer, ConciliateurSerializer, SlotSerializer
+from .serializers import ConciliateurSerializer, SlotSerializer
 
 
 class Conflict(APIException):
     status_code = 409
-
-
-@extend_schema(tags=["Auth"])
-class ConciliateurRegisterView(CreateAPIView):
-    serializer_class = ConciliateurRegisterSerializer
-    permission_classes = [AllowAny]
-    authentication_classes = []
 
 
 @extend_schema(tags=["Conciliateurs"])

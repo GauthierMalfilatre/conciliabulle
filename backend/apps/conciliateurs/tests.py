@@ -1,5 +1,7 @@
 from datetime import timedelta
+from io import StringIO
 
+from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -20,26 +22,24 @@ def client_for(user):
     return c
 
 
-class ConciliateurRegisterTests(TestCase):
-    def test_register_creates_unverified_conciliateur(self):
-        r = self.client.post(
-            "/api/v1/auth/conciliateur/register",
-            {"email": "c@b.fr", "password": "S3cure-pass-42", "city": "Lyon"},
-            content_type="application/json",
-        )
-        self.assertEqual(r.status_code, 201)
+class CreateConciliateurCommandTests(TestCase):
+    def test_creates_verified_conciliateur_who_can_log_in(self):
+        call_command("create_conciliateur", "c@b.fr", password="S3cure-pass-42", city="Lyon", stdout=StringIO())
         u = User.objects.get(email="c@b.fr")
         self.assertEqual(u.role, User.Role.CONCILIATEUR)
-        self.assertFalse(u.conciliateur.is_verified)
+        self.assertTrue(u.conciliateur.is_verified)
+        r = self.client.post("/api/v1/auth/login", {"email": "c@b.fr", "password": "S3cure-pass-42"}, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
 
-    def test_city_required(self):
-        r = self.client.post(
-            "/api/v1/auth/conciliateur/register",
-            {"email": "c@b.fr", "password": "S3cure-pass-42"},
-            content_type="application/json",
-        )
-        self.assertEqual(r.status_code, 400)
-        self.assertFalse(User.objects.exists())
+    def test_unverified_flag_and_duplicate(self):
+        call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon", unverified=True, stdout=StringIO())
+        self.assertFalse(User.objects.get(email="c@b.fr").conciliateur.is_verified)
+        with self.assertRaises(CommandError):
+            call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon")
+
+    def test_no_public_conciliateur_registration(self):
+        r = self.client.post("/api/v1/auth/conciliateur/register", {"email": "c@b.fr", "password": "S3cure-pass-42", "city": "Lyon"}, content_type="application/json")
+        self.assertEqual(r.status_code, 404)
 
 
 class ListingTests(TestCase):

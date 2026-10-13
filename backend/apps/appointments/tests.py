@@ -10,8 +10,8 @@ from apps.conciliateurs.tests import client_for, make_conciliateur
 from .models import Appointment
 
 
-def make_slot(conciliateur, days=3):
-    start = timezone.now() + timedelta(days=days)
+def make_slot(conciliateur, days=3, hours=0):
+    start = timezone.now() + timedelta(days=days, hours=hours)
     return Slot.objects.create(conciliateur=conciliateur, start=start, end=start + timedelta(hours=1))
 
 
@@ -58,3 +58,26 @@ class BookTests(AppointmentTestCase):
         self.book()
         self.assertEqual(client_for(self.c.user).delete(f"/api/v1/me/slots/{self.slot.id}").status_code, 409)
         self.assertTrue(Slot.objects.filter(pk=self.slot.pk).exists())
+
+
+class CancelTests(AppointmentTestCase):
+    def test_cancel_frees_slot_and_keeps_row(self):
+        appt_id = self.book().json()["id"]
+        self.assertEqual(self.api.delete(f"/api/v1/appointments/{appt_id}").status_code, 204)
+        self.assertEqual(Appointment.objects.get(pk=appt_id).status, Appointment.Status.CANCELLED)
+        self.assertEqual(len(self.api.get(f"/api/v1/conciliateurs/{self.c.id}/slots").json()), 1)
+        self.assertEqual(self.book(api=client_for(User.objects.create_user("o@b.fr", "pw"))).status_code, 201)
+
+    def test_cancel_twice_refused(self):
+        appt_id = self.book().json()["id"]
+        self.api.delete(f"/api/v1/appointments/{appt_id}")
+        self.assertEqual(self.api.delete(f"/api/v1/appointments/{appt_id}").status_code, 400)
+
+    def test_cancel_inside_window_refused(self):
+        appt_id = self.book(make_slot(self.c, days=0, hours=2)).json()["id"]
+        self.assertEqual(self.api.delete(f"/api/v1/appointments/{appt_id}").status_code, 400)
+
+    def test_cannot_cancel_someone_elses(self):
+        appt_id = self.book().json()["id"]
+        other = client_for(User.objects.create_user("o@b.fr", "pw"))
+        self.assertEqual(other.delete(f"/api/v1/appointments/{appt_id}").status_code, 404)

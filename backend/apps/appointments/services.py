@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
@@ -28,3 +31,17 @@ def book(user, slot, motive=""):
             return Appointment.objects.create(user=user, slot=slot, motive=motive)
     except IntegrityError:
         raise SlotTaken
+
+
+def check_changeable(appointment):
+    if appointment.status != Appointment.Status.BOOKED:
+        raise ValidationError("Appointment is already cancelled.")
+    limit = timezone.now() + timedelta(hours=settings.CANCELLATION_WINDOW_HOURS)
+    if appointment.slot.start < limit:
+        raise ValidationError(f"Too late: changes are closed {settings.CANCELLATION_WINDOW_HOURS}h before the appointment.")
+
+
+def cancel(appointment):
+    check_changeable(appointment)
+    appointment.status = Appointment.Status.CANCELLED
+    appointment.save(update_fields=["status"])

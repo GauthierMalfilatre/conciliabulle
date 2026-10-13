@@ -1,4 +1,4 @@
-from rest_framework.generics import ListAPIView, ListCreateAPIView
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveDestroyAPIView
 
 from apps.accounts.permissions import IsPlainUser
 from apps.conciliateurs.permissions import IsConciliateur
@@ -20,6 +20,19 @@ class AppointmentListCreateView(ListCreateAPIView):
     def perform_create(self, serializer):
         d = serializer.validated_data
         serializer.instance = services.book(self.request.user, d["slot"], d.get("motive", ""))
+
+
+class AppointmentDetailView(RetrieveDestroyAPIView):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsPlainUser]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Appointment.objects.none()
+        return self.request.user.appointments.select_related("slot")
+
+    def perform_destroy(self, instance):
+        services.cancel(instance)  # soft cancel: the row is kept
 
 
 class MyAppointmentListView(ListAPIView):

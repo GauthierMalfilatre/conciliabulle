@@ -20,7 +20,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-**Sans rien installer**, avec Docker : `cp backend/.env.example backend/.env && SESSION_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))') docker compose up --build` (API sur <http://localhost:8000>, site sur <http://localhost:3000>, base sqlite conservée dans un volume). Le `SESSION_SECRET` signe les cookies de session du site.
+**Sans rien installer**, avec Docker : `cp backend/.env.example backend/.env && cp .env.example .env` (puis renseigne `SESSION_SECRET` dans `.env`, la commande pour le générer est dans le fichier), `docker compose up --build` (API sur <http://localhost:8000>, site sur <http://localhost:3000>, base sqlite conservée dans un volume). Le `SESSION_SECRET` signe les cookies de session du site ; sans lui, `docker compose` refuse de démarrer.
 
 - **Swagger (doc interactive)** : <http://localhost:8000/api/docs/>
 - **Schéma OpenAPI** (pour générer un client TypeScript, etc.) : <http://localhost:8000/api/schema/>

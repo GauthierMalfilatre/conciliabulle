@@ -57,8 +57,9 @@ curl "$API/conciliateurs/1/slots?from=2030-01-01&to=2030-02-01" -H "Authorizatio
 curl -X POST $API/appointments -H "Authorization: Bearer $USER_ACCESS" -H 'Content-Type: application/json' \
   -d '{"slot_id":1,"first_name":"Alice","last_name":"Durand","phone":"06 12 34 56 78","motive":"Conflit de voisinage"}'
 
-# 4. Le conciliateur voit qui a réservé, et récupère son lien d'abonnement calendrier (Google Calendar, Outlook...)
-curl $API/me/appointments -H "Authorization: Bearer $ACCESS"
+# 4. Le conciliateur voit son calendrier (libre/réservé), ses alertes, et récupère son lien d'abonnement (Google Calendar, Outlook...)
+curl "$API/me/slots?from=2030-01-01&to=2030-02-01" -H "Authorization: Bearer $ACCESS"
+curl "$API/me/notifications?unread=true" -H "Authorization: Bearer $ACCESS"
 curl $API/me/calendar -H "Authorization: Bearer $ACCESS"     # -> {"url": ".../api/v1/calendar/<secret>.ics"}
 ```
 
@@ -69,6 +70,8 @@ Toutes les routes protégées attendent `Authorization: Bearer <access>`. Le tok
 - **Réserver** exige `first_name`, `last_name` et `phone` du plaignant (400 sinon) ; le conciliateur les voit sur ses rendez-vous.
 - **Annuler ou changer** (`PATCH` : nouveau `slot_id`, et/ou nom, téléphone, motif) est refusé (400) à moins de 24h du début.
 - **Zone géographique** : `GET /conciliateurs?department=69` (code département, `2A`/`2B` pour la Corse) ; `&available=true` ne garde que ceux qui ont un créneau libre. Les créneaux d'un conciliateur se filtrent avec `?from=` et `?to=` (date ou datetime ISO ; `from` inclus, `to` exclu).
+- **Consignes** : la réponse de `POST /appointments` (et de `GET /appointments`) contient `instructions`, à afficher au plaignant après la réservation. Le conciliateur les personnalise avec `PATCH /me/profile`.
+- **Alertes du conciliateur** : à chaque rendez-vous pris, modifié ou annulé, il reçoit une notification (`GET /me/notifications?unread=true`, puis `POST /me/notifications/{id}/read` ou `/read-all`) et un e-mail (dans la console du serveur en dev).
 - **Lieu** : chaque créneau a un `location` (affiché au plaignant).
 - **Devenir conciliateur** : `POST /candidatures` (public, sans compte, 5 par heure et par IP) avec `first_name`, `last_name`, `email`, `phone`, `department`, `message`, `consent: true`. L'association du département les traite depuis l'admin Django.
 - **Export calendrier** : `GET /me/calendar` (conciliateur) donne une URL privée `.ics` à coller dans Google Calendar / Outlook ; `POST /me/calendar` en génère une nouvelle (l'ancienne cesse de marcher). Ne la partage pas : elle contient les noms et téléphones des plaignants.
@@ -77,7 +80,7 @@ Toutes les routes protégées attendent `Authorization: Bearer <access>`. Le tok
 - Les dates sont en UTC (ISO 8601).
 
 ## Limites connues
-Pas d'e-mails/SMS, pas de contenu « modalités de recrutement » côté API (à mettre dans le front), pas d'annulation par le conciliateur, `SECRET_KEY`/`DEBUG` en dur. Voir [`.claude/CLAUDE.md`](.claude/CLAUDE.md) pour la liste complète, et ouvre une issue si ça te bloque.
+Pas de SMS, pas de contenu « modalités de recrutement » côté API (à mettre dans le front), pas d'annulation par le conciliateur, `SECRET_KEY`/`DEBUG` en dur. Voir [`.claude/CLAUDE.md`](.claude/CLAUDE.md) pour la liste complète, et ouvre une issue si ça te bloque.
 
 ## Aller plus loin
 - [CONTRIBUTING.md](CONTRIBUTING.md) : comment proposer une modification (branches, commits, PR)

@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import time, timedelta
 from unittest import mock
 
 from django.conf import settings
@@ -96,7 +96,8 @@ class Command(BaseCommand):
         Slot.objects.create(conciliateur=first, start=start, end=start + timedelta(hours=1), location="Permanence exceptionnelle, mairie du 3e")
 
         plaignants = [
-            User.objects.create_user(f"{f.lower()}.{l.lower().replace('è', 'e')}{DOMAIN}", PASSWORD, first_name=f, last_name=l) for f, l, _ in PLAIGNANTS
+            User.objects.create_user(f"{first.lower()}.{last.lower().replace('è', 'e')}{DOMAIN}", PASSWORD, first_name=first, last_name=last)
+            for first, last, _ in PLAIGNANTS
         ]
         booked = []
         for p, c, nth, motive in APPOINTMENTS:
@@ -131,7 +132,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Demo data created."))
         self.stdout.write(f"Password for every account: {PASSWORD}")
         self.stdout.write(f"  admin (Django /admin/)  : admin{DOMAIN}")
-        for email, first, last, city, dept, verified, *_ in CONCILIATEURS:
+        for email, _first, _last, city, dept, verified, *_ in CONCILIATEURS:
             self.stdout.write(f"  conciliateur {dept:>2} {city:<13}: {email}{DOMAIN}" + ("" if verified else "   (NOT verified: visible only with --authorize-all=yes)"))
         for first, last, _ in PLAIGNANTS:
             self.stdout.write(f"  plaignant               : {first.lower()}.{last.lower().replace('è', 'e')}{DOMAIN}")

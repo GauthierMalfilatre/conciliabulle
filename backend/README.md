@@ -10,8 +10,11 @@ python manage.py runserver --authorize-all=yes  # testing: unverified conciliate
 python manage.py test
 ```
 
-Conciliateurs register unverified; validate them from the Django admin (`createsuperuser`, then `/admin/`).
-Cancel/reschedule window: `CANCELLATION_WINDOW_HOURS` in `config/settings.py`.
+Conciliateurs have no public registration: create them with
+`python manage.py create_conciliateur EMAIL --password ... --city Lyon --department 69` (verified by default, `--unverified` otherwise),
+or from the Django admin (`createsuperuser`, then `/admin/`). The admin also lists the `Candidature`s (people who want to become conciliateurs).
+Settings worth knowing (`config/settings.py`): `CANCELLATION_WINDOW_HOURS` (24), `AVAILABILITY_HORIZON_WEEKS` (8),
+`LOCAL_TIME_ZONE` (Europe/Paris, used by recurring availabilities), env var `CORS_ALLOWED_ORIGINS` (default: localhost:3000).
 
 ## Database schema
 
@@ -21,7 +24,9 @@ Hand-written from the models: update it when a model changes.
 erDiagram
     User ||--o| ConciliateurProfile : "has (role CONCILIATEUR)"
     User ||--o{ Appointment : books
+    ConciliateurProfile ||--o{ Availability : defines
     ConciliateurProfile ||--o{ Slot : publishes
+    Availability ||--o{ Slot : generates
     Slot ||--o{ Appointment : "booked by"
 
     User {
@@ -36,21 +41,52 @@ erDiagram
         int id PK
         int user_id FK, UK
         string city
+        string department "indexed, ex 69 or 2A"
         text bio
         bool is_verified "default false"
+        string calendar_token UK "nullable, secret of the .ics feed"
+    }
+    Availability {
+        int id PK
+        int conciliateur_id FK
+        int weekday "0 = Monday"
+        time start_time "local time"
+        time end_time
+        int slot_minutes "15 to 240"
+        string location
+        date valid_from "nullable"
+        date valid_until "nullable"
+        date generated_until "slots exist up to this day"
     }
     Slot {
         int id PK
         int conciliateur_id FK
+        int availability_id FK "nullable, SET_NULL"
         datetime start "UK with conciliateur"
         datetime end "CHECK end > start"
+        string location
     }
     Appointment {
         int id PK
         int user_id FK
         int slot_id FK "on_delete PROTECT"
         string status "BOOKED | CANCELLED"
+        string first_name "plaignant, given at booking"
+        string last_name
+        string phone
         text motive
+        datetime created_at
+    }
+    Candidature {
+        int id PK
+        string first_name
+        string last_name
+        string email
+        string phone
+        string department "indexed"
+        text message
+        bool consent
+        bool handled "association has called back"
         datetime created_at
     }
 ```

@@ -3,6 +3,12 @@
 API REST (backend/) pour prendre, modifier et annuler des rendez-vous avec des conciliateurs de justice.
 Le frontend n'existe pas encore (il affichera un gros bouton « JE SUIS UN CONCILIATEUR »).
 
+## Cahier des charges (résumé)
+- **Plaignant** : crée un compte / se connecte ; voit les conciliateurs d'une zone géographique (département) ; réserve un créneau dans le calendrier d'un conciliateur en donnant nom, prénom, téléphone (obligatoires) ; modifie/annule jusqu'à 24h avant.
+- **Conciliateur** : se connecte ; consulte ses rendez-vous ; exporte vers Outlook/Google Calendar (iCalendar).
+- **Autres** : bouton « Comment devenir conciliateur de justice » (front) ; modalités de recrutement (contenu) ; dépôt de ses informations pour être recontacté par l'association du département (`POST candidatures`).
+- Tout est couvert côté API, sauf le contenu statique des modalités de recrutement (front).
+
 ## Règles de travail
 - Les contributeurs externes suivent `CONTRIBUTING.md` (PR vers `main`, modèle dans `.github/pull_request_template.md`) ; `README.md` à la racine = démarrage rapide pour tout le monde. Garder ces trois fichiers cohérents avec ce document.
 - Branche courante du travail backend : `feat/backend`. Commits fréquents et petits, en **Conventional Commits** (`feat(scope):`, `fix:`, `test:`, `docs:`, `chore:`), terminés par la ligne Co-Authored-By demandée par l'environnement.
@@ -22,6 +28,7 @@ Python 3.14 (venv `.venv` à la racine), Django 6.1, DRF 3.18, simplejwt (JWT st
 ../.venv/bin/python manage.py migrate
 ../.venv/bin/python manage.py runserver                      # Swagger : /api/docs/
 ../.venv/bin/python manage.py runserver --authorize-all=yes  # test : conciliateurs non vérifiés visibles/réservables
+../.venv/bin/python manage.py create_conciliateur EMAIL --password X --city Lyon --department 69   # pas d'inscription publique ; --unverified possible
 ../.venv/bin/python manage.py makemigrations                 # après modif d'un modèle ; commiter la migration
 ../.venv/bin/python manage.py test
 ../.venv/bin/python manage.py spectacular --validate --fail-on-warn   # le schéma OpenAPI doit rester sans warning
@@ -33,41 +40,52 @@ Un module = un dossier dans `apps/`. `config/` = settings, urls racine.
 |---|---|
 | `apps/health` | `GET /api/v1/health` (état API + base ; 503 si base KO) |
 | `apps/accounts` | `User` custom (login par email, `role`), register/login/refresh/me, permission `IsPlainUser` |
-| `apps/conciliateurs` | `ConciliateurProfile` (`is_verified`), `Slot`, annuaire, gestion des créneaux, commande `runserver` surchargée, permission `IsConciliateur` |
-| `apps/appointments` | `Appointment`, `services.py` (book / cancel / reschedule + règles) |
+| `apps/conciliateurs` | `ConciliateurProfile` (`department`, `is_verified`, `calendar_token`), `Availability` (récurrence), `Slot` (`location`), annuaire + filtres, `services.py` (génération des créneaux), commandes `runserver` (surchargée) et `create_conciliateur`, permission `IsConciliateur` |
+| `apps/appointments` | `Appointment` (contact du plaignant), `services.py` (book / update / cancel + règles), `ics.py` (export iCalendar) |
+| `apps/candidatures` | `Candidature` : demandes pour devenir conciliateur (route publique limitée, traitées dans l'admin) |
+| `config/validators.py` | validateurs partagés (téléphone, code département) |
 
-Docs : `GET /api/docs/` (Swagger UI), `GET /api/schema/` (OpenAPI), hors de `/api/v1/`. Tags : Auth, Account, Conciliateurs, Créneaux, Rendez-vous, Health.
+Docs : `GET /api/docs/` (Swagger UI), `GET /api/schema/` (OpenAPI), hors de `/api/v1/`. Tags : Auth, Account, Conciliateurs, Créneaux, Rendez-vous, Calendrier, Candidatures, Health.
 
 ## Routes (`/api/v1/`, JWT `Authorization: Bearer <access>` sauf mention)
 | Route | Qui | Effet |
 |---|---|---|
-| `POST auth/register` | public | crée un compte USER (le rôle n'est jamais choisi par le client) |
-| `POST auth/conciliateur/register` | public | crée un compte CONCILIATEUR (+ profil, `city` requis, non vérifié) |
+| `POST auth/register` | public | crée un compte USER (le rôle n'est jamais choisi par le client). **Pas d'inscription publique de conciliateur** : `create_conciliateur` ou l'admin Django |
 | `POST auth/login`, `POST auth/refresh` | public | tokens JWT ; le claim `role` est dans le token |
 | `GET me` | connecté | compte courant |
-| `GET conciliateurs` | connecté | conciliateurs visibles (vérifiés) |
-| `GET conciliateurs/{id}/slots` | connecté | créneaux futurs libres |
-| `GET/POST me/slots`, `DELETE me/slots/{id}` | conciliateur | gère ses créneaux (409 si le créneau a des rendez-vous) |
-| `GET/POST appointments` | USER | liste ses rendez-vous / réserve (`slot_id`, `motive`) |
-| `GET/PATCH/DELETE appointments/{id}` | USER | détail / change de créneau (`slot_id`) / annule |
-| `GET me/appointments` | conciliateur | rendez-vous sur ses créneaux |
+| `GET conciliateurs?department=&available=true` | connecté | conciliateurs visibles (vérifiés), filtrés par département / ayant un créneau libre |
+| `GET conciliateurs/{id}/slots?from=&to=` | connecté | créneaux futurs libres (`from` inclus, `to` exclu ; date ou datetime ISO) |
+| `GET/POST me/slots`, `DELETE me/slots/{id}` | conciliateur | gère ses créneaux (`location` requis ; 409 si le créneau a des rendez-vous) |
+| `GET/POST me/availabilities`, `DELETE me/availabilities/{id}` | conciliateur | disponibilités hebdomadaires récurrentes, expansées en créneaux (supprimer retire les créneaux futurs non réservés) |
+| `GET/POST appointments` | USER | liste ses rendez-vous / réserve (`slot_id`, `first_name`, `last_name`, `phone` obligatoires, `motive`) |
+| `GET/PATCH/DELETE appointments/{id}` | USER | détail / change `slot_id` et/ou coordonnées/motif (au moins un champ) / annule |
+| `GET me/appointments` | conciliateur | rendez-vous sur ses créneaux, avec les coordonnées du plaignant |
+| `GET/POST me/calendar` | conciliateur | GET : URL privée d'abonnement ; POST : la régénère |
+| `GET calendar/{token}.ics` | public (le token fait office de secret) | flux iCalendar des rendez-vous `BOOKED` (30 derniers jours + à venir) |
+| `POST candidatures` | public | dépôt d'une candidature (`consent: true` requis ; 5/heure/IP) |
 
-Codes : 409 créneau déjà pris ; 400 hors fenêtre, déjà annulé ou créneau passé ; 403 mauvais rôle ; 404 pour la ressource d'un autre.
+Codes : 409 créneau déjà pris ; 400 hors fenêtre, déjà annulé, créneau passé ou donnée invalide ; 403 mauvais rôle ; 404 pour la ressource d'un autre ; 429 trop de candidatures.
 
 ## Règles métier
 - USER et CONCILIATEUR sont deux types de compte distincts ; un conciliateur ne peut pas réserver.
 - Un conciliateur est invisible et ne peut pas publier de créneaux tant que `is_verified=False` (validation par un admin dans `/admin/`). `ConciliateurProfile.objects.visible()` est le seul point d'accès à cette règle.
 - `settings.AUTHORIZE_ALL` (flag `--authorize-all=yes`, défaut off) désactive cette vérification : annuaire, réservation et publication de créneaux. Il n'existe que via `runserver`.
+- Les coordonnées du plaignant (nom, prénom, téléphone) sont saisies à la réservation et stockées **sur le rendez-vous** ; seul le conciliateur concerné les voit (ainsi que le plaignant lui-même).
+- Les conciliateurs sont recrutés via l'association : pas d'auto-inscription. Les candidatures arrivent dans l'admin (`Candidature`, filtre par département).
 - Annuler/changer un rendez-vous est refusé à moins de `CANCELLATION_WINDOW_HOURS` (24h) du début. L'annulation est « soft » (`status=CANCELLED`, la ligne reste).
 - Pas de double réservation : contrainte unique conditionnelle `one_booking_per_slot` (créneau unique parmi les `BOOKED`) + 409.
+- Disponibilités récurrentes : l'heure est locale (`LOCAL_TIME_ZONE`=Europe/Paris, gère l'heure d'été), expansée en `Slot` sur `AVAILABILITY_HORIZON_WEEKS` (8) semaines. Pas de cron : `services.extend_rules()` prolonge paresseusement à chaque consultation des créneaux/annuaire. `generated_until` évite de recréer un créneau supprimé à la main.
+- Export calendrier : le flux `.ics` n'a pas de JWT (les clients calendrier n'en envoient pas) ; le token secret de `ConciliateurProfile.calendar_token` est le seul secret, créé au premier appel de `GET me/calendar`.
 - Stateless : pas de session, pas de logout serveur.
 
 ## Pièges connus
 - CORS : `CorsMiddleware` doit rester avant `CommonMiddleware`. Origines autorisées = `CORS_ALLOWED_ORIGINS` (env, séparées par des virgules ; défaut `localhost:3000` et `127.0.0.1:3000`). Ne jamais mettre `CORS_ALLOW_ALL_ORIGINS`.
 - `apps.conciliateurs` doit rester **en premier** dans `INSTALLED_APPS` : sa commande `runserver` doit passer avant celle de `staticfiles`.
 - `AppointmentSerializer.Meta.validators = []` est voulu : sinon DRF renvoie 400 au lieu de 409 sur un créneau pris.
+- drf-spectacular : sur une `APIView` à plusieurs méthodes, mettre `request=None` dans `extend_schema` pour les méthodes sans corps ; `ICalRenderer` doit renvoyer `b""` pour les corps d'erreur (dicts).
+- Une migration qui ajoute un champ obligatoire à une table existante a besoin d'un défaut ponctuel (`preserve_default=False`).
 - Les vues qui utilisent `request.user` dans `get_queryset` testent `swagger_fake_view` pour la génération du schéma.
 - Permissions par défaut : `IsAuthenticated` ; les vues publiques déclarent `AllowAny` + `authentication_classes = []`.
 
 ## Pas encore fait
-Annulation par le conciliateur, e-mails/SMS, fuseaux horaires (UTC seulement), disponibilités récurrentes, recherche (ville/spécialité), rate limiting, `SECRET_KEY`/`DEBUG`/`ALLOWED_HOSTS` en variables d'environnement, frontend.
+Annulation par le conciliateur, e-mails/SMS (notification de l'association pour une candidature, confirmations de rendez-vous), contenu « modalités et conditions de recrutement » (prévu côté front), détection des chevauchements entre disponibilités/créneaux, modification d'une disponibilité (supprimer puis recréer), recherche par ville/rayon GPS, rate limiting hors candidatures, `SECRET_KEY`/`DEBUG`/`ALLOWED_HOSTS` en variables d'environnement, durée de conservation des données personnelles (RGPD), frontend.

@@ -48,7 +48,7 @@ erDiagram
     Appointment {
         int id PK
         int user_id FK
-        int slot_id FK, PROTECT
+        int slot_id FK "on_delete PROTECT"
         string status "BOOKED | CANCELLED"
         text motive
         datetime created_at

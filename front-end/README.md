@@ -21,7 +21,7 @@ npm run dev                  # http://localhost:3000
 En production, **`SESSION_SECRET`** est obligatoire (longue chaîne aléatoire) : elle signe le cookie de
 session, et la connexion échoue sans elle. Node 20.9 ou plus.
 
-Avant de pousser : `npx tsc --noEmit && npm run lint && npm run build`.
+Avant de pousser : `npx next typegen && npx tsc --noEmit && npm run lint && npm run build`.
 
 ## Comptes de démonstration
 

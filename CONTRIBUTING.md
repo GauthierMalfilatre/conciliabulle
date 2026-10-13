@@ -18,9 +18,9 @@ cd backend && python manage.py test
    Préfixes de branche : `feat/`, `fix/`, `docs/`, `chore/`, `test/`, `refactor/`.
 2. Fais des **commits petits et fréquents** (un changement logique = un commit).
 3. Pousse et ouvre une PR vers `main` en remplissant le modèle de PR.
-4. Une personne relit, tu corriges si besoin, puis on fusionne (**squash** de préférence).
+4. Quand la CI est verte, tu peux fusionner (**squash** de préférence). Aucune relecture n'est obligatoire, mais n'hésite pas à en demander une pour un changement délicat.
 
-Ne pousse jamais directement sur `main`.
+`main` est protégée : on ne pousse jamais dessus directement, tout passe par une PR, et les jobs `backend` et `docker image builds` de la CI doivent être verts avant de pouvoir fusionner.
 
 ## 3. Messages de commit : Conventional Commits
 Format : `type(portée): description à l'impératif, en minuscules, sans point final`

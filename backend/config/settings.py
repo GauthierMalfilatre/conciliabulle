@@ -36,6 +36,8 @@ def env_bool(name, default=False):
 
 # Secure by default: DEBUG is off unless the environment says otherwise.
 DEBUG = env_bool("DEBUG")
+# Lets `seed_demo` run without DEBUG (local docker compose only: it creates accounts with a known password).
+DEMO_DATA = env_bool("DEMO_DATA")
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:

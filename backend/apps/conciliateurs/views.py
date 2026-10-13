@@ -8,7 +8,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import APIException, ValidationError
-from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, RetrieveUpdateAPIView
 
 from . import services
 from .models import Availability, ConciliateurProfile, Slot
@@ -39,6 +39,14 @@ class ConciliateurListView(ListAPIView):
         if params.get("available") == "true":
             qs = qs.filter(slots__in=Slot.objects.free()).distinct()
         return qs
+
+
+@extend_schema(tags=["Conciliateurs"])
+class ConciliateurDetailView(RetrieveAPIView):
+    """One visible conciliateur, e.g. for their public page."""
+
+    serializer_class = ConciliateurSerializer
+    queryset = ConciliateurProfile.objects.visible().select_related("user")
 
 
 def _parse_bound(name, value):

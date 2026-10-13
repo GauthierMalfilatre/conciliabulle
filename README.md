@@ -5,11 +5,11 @@
 | Dossier | Contenu | État |
 |---|---|---|
 | `backend/` | API REST Django + DRF, JWT stateless, sqlite3 | ✅ en place |
-| frontend | à venir | 🚧 on cherche des volontaires, voir [CONTRIBUTING.md](CONTRIBUTING.md) |
+| `front-end/` | Next.js 16 + React 19 + Tailwind, branché sur l'API (voir [front-end/README.md](front-end/README.md)) | 🚧 en cours : dossiers, rappels et réglages encore fictifs |
 
 ## Démarrer l'API
 
-Prérequis : Python 3.12+ (développé en 3.14).
+Prérequis : Python 3.12+ (développé en 3.14) ; Node 20.9+ pour le front.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -20,7 +20,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-**Sans installer Python**, avec Docker : `cp backend/.env.example backend/.env && docker compose up --build` (API sur <http://localhost:8000>, base sqlite conservée dans un volume).
+**Sans rien installer**, avec Docker : `cp backend/.env.example backend/.env && cp .env.example .env` (puis renseigne `SESSION_SECRET` dans `.env`, la commande pour le générer est dans le fichier), `docker compose up --build`, puis `docker compose exec api python manage.py seed_demo` pour les comptes de démo (boutons « Comptes de démonstration » sur la page de connexion) (API sur <http://localhost:8000>, site sur <http://localhost:3000>, base sqlite conservée dans un volume). Le `SESSION_SECRET` signe les cookies de session du site ; sans lui, `docker compose` refuse de démarrer.
 
 - **Swagger (doc interactive)** : <http://localhost:8000/api/docs/>
 - **Schéma OpenAPI** (pour générer un client TypeScript, etc.) : <http://localhost:8000/api/schema/>

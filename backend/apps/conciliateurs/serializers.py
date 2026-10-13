@@ -48,8 +48,8 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConciliateurProfile
-        fields = ("city", "department", "bio", "instructions", "is_verified")
-        read_only_fields = ("is_verified",)
+        fields = ("id", "city", "department", "bio", "instructions", "is_verified")
+        read_only_fields = ("id", "is_verified")
 
 
 class MySlotSerializer(SlotSerializer):

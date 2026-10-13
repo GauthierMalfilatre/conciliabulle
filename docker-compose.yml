@@ -1,4 +1,8 @@
-# Production-like local run:  cp backend/.env.example backend/.env  &&  docker compose up --build
+# Production-like local run:
+#   cp backend/.env.example backend/.env
+#   cp .env.example .env     # then put a long random SESSION_SECRET in it (see the file)
+#   docker compose up --build
+# API on :8000, site on :3000. Demo data:  docker compose exec api python manage.py seed_demo
 name: conciliabulle
 
 services:
@@ -7,11 +11,24 @@ services:
     env_file: backend/.env
     environment:
       DEBUG: "false"                    # override the dev value of .env
+      ALLOWED_HOSTS: localhost,127.0.0.1,api   # "api": the web service calls it by name
+      DEMO_DATA: "true"                 # allows seed_demo; local run only, drop it for a real deployment
       DATABASE_PATH: /data/db.sqlite3
     ports:
       - "8000:8000"
     volumes:
       - api-data:/data
+
+  web:
+    build: ./front-end
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8000/api/v1
+      SHOW_DEMO_ACCOUNTS: "true"        # demo buttons on the login page; local run only
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (cp .env.example .env), see .env.example}
+    ports:
+      - "3000:3000"
 
 volumes:
   api-data:

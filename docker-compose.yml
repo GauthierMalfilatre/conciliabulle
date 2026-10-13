@@ -1,0 +1,15 @@
+# Production-like local run:  cp backend/.env.example backend/.env  &&  docker compose up --build
+services:
+  api:
+    build: ./backend
+    env_file: backend/.env
+    environment:
+      DEBUG: "false"                    # override the dev value of .env
+      DATABASE_PATH: /data/db.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - api-data:/data
+
+volumes:
+  api-data:

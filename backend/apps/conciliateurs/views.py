@@ -2,6 +2,7 @@ from datetime import datetime
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -9,9 +10,10 @@ from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView
 
-from .models import ConciliateurProfile, Slot
+from . import services
+from .models import Availability, ConciliateurProfile, Slot
 from .permissions import IsConciliateur
-from .serializers import ConciliateurSerializer, SlotSerializer
+from .serializers import AvailabilitySerializer, ConciliateurSerializer, SlotSerializer
 
 
 class Conflict(APIException):
@@ -29,6 +31,7 @@ class ConciliateurListView(ListAPIView):
     serializer_class = ConciliateurSerializer
 
     def get_queryset(self):
+        services.extend_rules()
         qs = ConciliateurProfile.objects.visible().select_related("user")
         params = self.request.query_params
         if department := params.get("department"):
@@ -60,6 +63,7 @@ class FreeSlotListView(ListAPIView):
 
     def get_queryset(self):
         c = get_object_or_404(ConciliateurProfile.objects.visible(), pk=self.kwargs["pk"])
+        services.extend_rules()
         qs = c.slots.free()
         if value := self.request.query_params.get("from"):
             qs = qs.filter(start__gte=_parse_bound("from", value))
@@ -97,3 +101,38 @@ class MySlotDeleteView(DestroyAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Slot.objects.none()
         return self.request.user.conciliateur.slots.all()
+
+
+@extend_schema(tags=["Créneaux"])
+class MyAvailabilityListCreateView(ListCreateAPIView):
+    """Recurring weekly availabilities: slots are generated from them, 8 weeks ahead."""
+
+    serializer_class = AvailabilitySerializer
+    permission_classes = [IsConciliateur]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Availability.objects.none()
+        return self.request.user.conciliateur.availabilities.all()
+
+    def perform_create(self, serializer):
+        rule = serializer.save(conciliateur=self.request.user.conciliateur)
+        services.materialize(rule)
+
+
+@extend_schema(tags=["Créneaux"])
+class MyAvailabilityDeleteView(DestroyAPIView):
+    """Deletes the rule and its future unbooked slots; booked slots are kept."""
+
+    serializer_class = AvailabilitySerializer
+    permission_classes = [IsConciliateur]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Availability.objects.none()
+        return self.request.user.conciliateur.availabilities.all()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        instance.slots.filter(start__gt=timezone.now()).exclude(appointments__isnull=False).delete()
+        instance.delete()  # slots with appointments stay, detached from the rule

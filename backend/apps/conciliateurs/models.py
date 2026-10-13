@@ -27,6 +27,25 @@ class ConciliateurProfile(models.Model):
         return f"{self.user.email} ({self.city})"
 
 
+class Availability(models.Model):
+    """Weekly recurring availability, e.g. every Tuesday 14:00-17:00 in 60-minute slots.
+
+    Slots are generated from it (see services.materialize); times are local (settings.LOCAL_TIME_ZONE).
+    """
+
+    WEEKDAYS = [(0, "Lundi"), (1, "Mardi"), (2, "Mercredi"), (3, "Jeudi"), (4, "Vendredi"), (5, "Samedi"), (6, "Dimanche")]
+
+    conciliateur = models.ForeignKey(ConciliateurProfile, on_delete=models.CASCADE, related_name="availabilities")
+    weekday = models.PositiveSmallIntegerField(choices=WEEKDAYS)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    slot_minutes = models.PositiveSmallIntegerField(default=60)
+    location = models.CharField(max_length=255)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    generated_until = models.DateField(null=True, blank=True, editable=False)  # slots exist up to this day
+
+
 class SlotQuerySet(models.QuerySet):
     def free(self):
         return self.filter(start__gt=timezone.now()).exclude(appointments__status="BOOKED")
@@ -39,6 +58,8 @@ class Slot(models.Model):
     start = models.DateTimeField()
     end = models.DateTimeField()
     location = models.CharField(max_length=255, help_text="Where the appointment takes place (address, room...).")
+    # Set when generated from a recurring availability.
+    availability = models.ForeignKey(Availability, null=True, blank=True, on_delete=models.SET_NULL, related_name="slots")
 
     class Meta:
         ordering = ("start",)

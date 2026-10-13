@@ -1,5 +1,7 @@
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
+from datetime import timezone as dt_timezone
 from io import StringIO
+from zoneinfo import ZoneInfo
 
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
@@ -10,7 +12,8 @@ from apps.accounts.models import User
 
 from apps.appointments.models import Appointment
 
-from .models import ConciliateurProfile, Slot
+from . import services
+from .models import Availability, ConciliateurProfile, Slot
 
 
 def make_conciliateur(email="c@b.fr", verified=True, department="69"):
@@ -159,3 +162,66 @@ class RunserverFlagTests(TestCase):
     def test_flag(self):
         self.assertTrue(self.run_flag(authorize_all="yes"))
         self.assertFalse(self.run_flag())
+
+
+class AvailabilityTests(TestCase):
+    rule = {"weekday": 0, "start_time": "09:00", "end_time": "11:00", "slot_minutes": 60, "location": "Mairie de Lyon 3e"}
+
+    def setUp(self):
+        self.c = make_conciliateur()
+        self.api = client_for(self.c.user)
+        self.plaignant = client_for(User.objects.create_user("u@b.fr", "pw"))
+
+    def test_create_generates_slots_in_local_time(self):
+        r = self.api.post("/api/v1/me/availabilities", self.rule, format="json")
+        self.assertEqual(r.status_code, 201)
+        slots = list(self.c.slots.all())
+        self.assertTrue(14 <= len(slots) <= 18)  # 2 per Monday over 8 weeks
+        paris = ZoneInfo("Europe/Paris")
+        for s in slots:
+            local = s.start.astimezone(paris)
+            self.assertEqual((local.weekday(), local.minute), (0, 0))
+            self.assertIn(local.hour, (9, 10))
+            self.assertEqual((s.location, s.end - s.start), ("Mairie de Lyon 3e", timedelta(hours=1)))
+            self.assertGreater(s.start, timezone.now())
+
+    def test_dst_change_keeps_local_time(self):
+        rule = Availability.objects.create(conciliateur=self.c, weekday=0, start_time=time(9), end_time=time(10), location="x", valid_from=date(2030, 3, 18), valid_until=date(2030, 4, 8))
+        services.materialize(rule, now=datetime(2030, 3, 15, tzinfo=dt_timezone.utc))
+        utc_hours = {s.start.date().isoformat(): s.start.hour for s in self.c.slots.all()}
+        # Paris switches to summer time on 2030-03-31: 09:00 local = 08:00Z before, 07:00Z after.
+        self.assertEqual(utc_hours, {"2030-03-18": 8, "2030-03-25": 8, "2030-04-01": 7, "2030-04-08": 7})
+
+    def test_deleted_slot_is_not_regenerated_but_horizon_is_extended(self):
+        rule = Availability.objects.create(conciliateur=self.c, weekday=0, start_time=time(9), end_time=time(10), location="x")
+        now = datetime(2030, 1, 1, tzinfo=dt_timezone.utc)
+        services.materialize(rule, now=now)
+        first = self.c.slots.first()
+        first.delete()
+        before = self.c.slots.count()
+        services.materialize(rule, now=now)
+        self.assertEqual(self.c.slots.count(), before)  # nothing new, deleted one stays deleted
+        services.materialize(rule, now=now + timedelta(weeks=4))
+        self.assertGreater(self.c.slots.count(), before)
+
+    def test_listing_slots_extends_stale_rules(self):
+        Availability.objects.create(conciliateur=self.c, weekday=0, start_time=time(9), end_time=time(10), location="x")  # never generated
+        r = self.plaignant.get(f"/api/v1/conciliateurs/{self.c.id}/slots")
+        self.assertTrue(len(r.json()) >= 7)
+
+    def test_delete_rule_keeps_booked_slots(self):
+        rid = self.api.post("/api/v1/me/availabilities", self.rule, format="json").json()["id"]
+        booked = self.c.slots.order_by("start").first()
+        Appointment.objects.create(user=User.objects.get(email="u@b.fr"), slot=booked, first_name="A", last_name="B", phone="0612345678")
+        self.assertEqual(self.api.delete(f"/api/v1/me/availabilities/{rid}").status_code, 204)
+        self.assertEqual(list(self.c.slots.all()), [booked])
+        booked.refresh_from_db()
+        self.assertIsNone(booked.availability)
+
+    def test_validation_and_permissions(self):
+        for bad in ({"weekday": 7}, {"end_time": "08:00"}, {"slot_minutes": 5}, {"end_time": "09:30"}, {"location": ""}, {"valid_from": "2030-02-01", "valid_until": "2030-01-01"}):
+            self.assertEqual(self.api.post("/api/v1/me/availabilities", {**self.rule, **bad}, format="json").status_code, 400, bad)
+        self.assertEqual(self.plaignant.post("/api/v1/me/availabilities", self.rule, format="json").status_code, 403)
+        other = client_for(make_conciliateur("o@b.fr").user)
+        rid = self.api.post("/api/v1/me/availabilities", self.rule, format="json").json()["id"]
+        self.assertEqual(other.delete(f"/api/v1/me/availabilities/{rid}").status_code, 404)

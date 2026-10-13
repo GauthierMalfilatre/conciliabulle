@@ -170,3 +170,7 @@ CANCELLATION_WINDOW_HOURS = 24
 
 # Front origins allowed to call the API from a browser (comma-separated env var in prod).
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+
+# Recurring availabilities are expressed in local time and expanded into slots this many weeks ahead.
+LOCAL_TIME_ZONE = "Europe/Paris"
+AVAILABILITY_HORIZON_WEEKS = 8

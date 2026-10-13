@@ -13,20 +13,38 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Local development: variables come from backend/.env (copy .env.example).
+# Real environment variables always win over the file, so production just sets them.
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
+
+def env_list(name, default=""):
+    return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
+
+def env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-jdt#)*_es8f5u_hgk(rvm=skt*@f57ki^74i^fajq+o3-+znta'
+# Secure by default: DEBUG is off unless the environment says otherwise.
+DEBUG = env_bool("DEBUG")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("The SECRET_KEY environment variable is required (see backend/.env.example).")
+    SECRET_KEY = "django-insecure-dev-only"  # never used when DEBUG is off
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")  # only needed for the admin behind an HTTPS domain
 
 
 # Application definition
@@ -51,6 +69,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves the admin/Swagger static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
@@ -86,7 +105,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get("DATABASE_PATH") or BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -126,6 +145,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # `manage.py collectstatic` target, served by whitenoise
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 
 # Email
@@ -186,7 +210,7 @@ AUTHORIZE_ALL = False
 CANCELLATION_WINDOW_HOURS = 24
 
 # Front origins allowed to call the API from a browser (comma-separated env var in prod).
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 
 # Recurring availabilities are expressed in local time and expanded into slots this many weeks ahead.
 LOCAL_TIME_ZONE = "Europe/Paris"
@@ -196,3 +220,10 @@ AVAILABILITY_HORIZON_WEEKS = 8
 DEFAULT_APPOINTMENT_INSTRUCTIONS = "Venez avec tout document pouvant être utile à votre dossier."
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@justice-tech.local")
+
+# Production hardening (HTTPS is normally terminated by a proxy: enable what matches your setup).
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT")
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
+if env_bool("BEHIND_HTTPS_PROXY"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

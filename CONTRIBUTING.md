@@ -3,7 +3,7 @@
 Merci de vouloir aider ! Les contributions passent toutes par une **Pull Request vers `main`**.
 
 ## 1. Mettre en place
-Suis « Démarrer l'API » dans le [README](README.md). Vérifie que tout est vert avant de commencer :
+Suis « Démarrer l'API » dans le [README](README.md) (sans oublier `cp backend/.env.example backend/.env`). Vérifie que tout est vert avant de commencer :
 
 ```bash
 cd backend && python manage.py test
@@ -57,7 +57,8 @@ Et aussi :
 - **Tests** : toute nouvelle règle ou route a ses tests (voir `apps/*/tests.py` pour le style).
 - **Swagger** : toute nouvelle vue a `@extend_schema(tags=[...])` ; un test échoue sinon.
 - **Docs à jour** : route ou règle changée → [`.claude/CLAUDE.md`](.claude/CLAUDE.md) ; modèle changé → schéma Mermaid de [`backend/README.md`](backend/README.md).
-- **Pas de secrets**, pas de `db.sqlite3`, pas de `.venv`, pas de fichiers d'IDE dans la PR.
+- **Pas de secrets**, pas de `.env`, pas de `db.sqlite3`, pas de `.venv`, pas de fichiers d'IDE dans la PR. Une nouvelle variable d'environnement se déclare dans `.env.example` et dans le tableau de `backend/README.md`.
+- **Dépendances** : `backend/requirements.txt` est entièrement épinglé ; ajoute la version exacte (et ses dépendances transitives) quand tu ajoutes un paquet.
 - Une PR = un sujet. Les gros chantiers se découpent.
 
 ## 5. Conventions backend

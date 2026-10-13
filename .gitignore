@@ -10,3 +10,7 @@ __pycache__/
 
 # SQLite db
 db.sqlite3
+
+# Local configuration and collected static files
+.env
+backend/staticfiles/

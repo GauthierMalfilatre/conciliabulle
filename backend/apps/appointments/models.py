@@ -1,6 +1,7 @@
 from django.conf import settings
-from django.core.validators import RegexValidator
 from django.db import models
+
+from config.validators import phone_validator
 
 
 class Appointment(models.Model):
@@ -14,7 +15,7 @@ class Appointment(models.Model):
     # Plaignant contact details, given at booking time (they may differ from the account's).
     last_name = models.CharField(max_length=150)
     first_name = models.CharField(max_length=150)
-    phone = models.CharField(max_length=20, validators=[RegexValidator(r"^\+?[0-9][0-9 .()-]{5,18}$", "Invalid phone number.")])
+    phone = models.CharField(max_length=20, validators=[phone_validator])
     motive = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

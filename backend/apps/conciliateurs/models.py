@@ -1,7 +1,8 @@
 from django.conf import settings
-from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
+
+from config.validators import department_validator
 
 
 class ConciliateurQuerySet(models.QuerySet):
@@ -15,8 +16,7 @@ class ConciliateurProfile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="conciliateur")
     city = models.CharField(max_length=100)
-    # French département code: 01-95, 2A/2B, 971-976...
-    department = models.CharField(max_length=3, db_index=True, validators=[RegexValidator(r"^(\d{2,3}|2[AB])$", "Invalid département code.")])
+    department = models.CharField(max_length=3, db_index=True, validators=[department_validator])
     bio = models.TextField(blank=True)
     # Real conciliateurs are appointed officially: an admin validates them.
     is_verified = models.BooleanField(default=False)

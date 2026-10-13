@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 
 class ConciliateurQuerySet(models.QuerySet):
@@ -13,6 +15,8 @@ class ConciliateurProfile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="conciliateur")
     city = models.CharField(max_length=100)
+    # French département code: 01-95, 2A/2B, 971-976...
+    department = models.CharField(max_length=3, db_index=True, validators=[RegexValidator(r"^(\d{2,3}|2[AB])$", "Invalid département code.")])
     bio = models.TextField(blank=True)
     # Real conciliateurs are appointed officially: an admin validates them.
     is_verified = models.BooleanField(default=False)
@@ -21,7 +25,14 @@ class ConciliateurProfile(models.Model):
         return f"{self.user.email} ({self.city})"
 
 
+class SlotQuerySet(models.QuerySet):
+    def free(self):
+        return self.filter(start__gt=timezone.now()).exclude(appointments__status="BOOKED")
+
+
 class Slot(models.Model):
+    objects = SlotQuerySet.as_manager()
+
     conciliateur = models.ForeignKey(ConciliateurProfile, on_delete=models.CASCADE, related_name="slots")
     start = models.DateTimeField()
     end = models.DateTimeField()

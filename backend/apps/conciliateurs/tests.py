@@ -8,12 +8,14 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 
+from apps.appointments.models import Appointment
+
 from .models import ConciliateurProfile, Slot
 
 
-def make_conciliateur(email="c@b.fr", verified=True):
+def make_conciliateur(email="c@b.fr", verified=True, department="69"):
     u = User.objects.create_user(email, "pw", role=User.Role.CONCILIATEUR, first_name="Jean")
-    return ConciliateurProfile.objects.create(user=u, city="Lyon", is_verified=verified)
+    return ConciliateurProfile.objects.create(user=u, city="Lyon", department=department, is_verified=verified)
 
 
 def client_for(user):
@@ -24,7 +26,7 @@ def client_for(user):
 
 class CreateConciliateurCommandTests(TestCase):
     def test_creates_verified_conciliateur_who_can_log_in(self):
-        call_command("create_conciliateur", "c@b.fr", password="S3cure-pass-42", city="Lyon", stdout=StringIO())
+        call_command("create_conciliateur", "c@b.fr", password="S3cure-pass-42", city="Lyon", department="69", stdout=StringIO())
         u = User.objects.get(email="c@b.fr")
         self.assertEqual(u.role, User.Role.CONCILIATEUR)
         self.assertTrue(u.conciliateur.is_verified)
@@ -32,10 +34,13 @@ class CreateConciliateurCommandTests(TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_unverified_flag_and_duplicate(self):
-        call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon", unverified=True, stdout=StringIO())
+        call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon", department="69", unverified=True, stdout=StringIO())
         self.assertFalse(User.objects.get(email="c@b.fr").conciliateur.is_verified)
         with self.assertRaises(CommandError):
-            call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon")
+            call_command("create_conciliateur", "c@b.fr", password="x", city="Lyon", department="69")
+        with self.assertRaises(CommandError):  # bad département code: nothing is created
+            call_command("create_conciliateur", "d@b.fr", password="x", city="Lyon", department="zz")
+        self.assertFalse(User.objects.filter(email="d@b.fr").exists())
 
     def test_no_public_conciliateur_registration(self):
         r = self.client.post("/api/v1/auth/conciliateur/register", {"email": "c@b.fr", "password": "S3cure-pass-42", "city": "Lyon"}, content_type="application/json")
@@ -61,6 +66,41 @@ class ListingTests(TestCase):
 
     def test_anonymous_refused(self):
         self.assertEqual(APIClient().get("/api/v1/conciliateurs").status_code, 401)
+
+
+class SearchTests(TestCase):
+    def setUp(self):
+        self.lyon = make_conciliateur("l@b.fr", department="69")
+        self.corse = make_conciliateur("k@b.fr", department="2A")
+        self.plaignant = User.objects.create_user("u@b.fr", "pw")
+        self.user = client_for(self.plaignant)
+
+    def in_days(self, d):
+        return timezone.now() + timedelta(days=d)
+
+    def ids(self, query):
+        return [c["id"] for c in self.user.get(f"/api/v1/conciliateurs{query}").json()]
+
+    def test_filter_by_department(self):
+        self.assertEqual(self.ids("?department=69"), [self.lyon.id])
+        self.assertEqual(self.ids("?department=2a"), [self.corse.id])
+        self.assertEqual(self.ids("?department=13"), [])
+
+    def test_filter_available_needs_a_free_slot(self):
+        self.assertEqual(self.ids("?available=true"), [])
+        slot = Slot.objects.create(conciliateur=self.lyon, start=self.in_days(3), end=self.in_days(3) + timedelta(hours=1))
+        self.assertEqual(self.ids("?available=true"), [self.lyon.id])
+        Appointment.objects.create(user=self.plaignant, slot=slot, first_name="A", last_name="B", phone="0612345678")
+        self.assertEqual(self.ids("?available=true"), [])
+
+    def test_slots_date_range(self):
+        for d in (2, 5, 9):
+            Slot.objects.create(conciliateur=self.lyon, start=self.in_days(d), end=self.in_days(d) + timedelta(hours=1))
+        url = f"/api/v1/conciliateurs/{self.lyon.id}/slots"
+        self.assertEqual(len(self.user.get(url).json()), 3)
+        window = self.user.get(url, {"from": self.in_days(3).isoformat(), "to": self.in_days(7).date().isoformat()}).json()
+        self.assertEqual(len(window), 1)
+        self.assertEqual(self.user.get(url, {"from": "not-a-date"}).status_code, 400)
 
 
 class SlotTests(TestCase):

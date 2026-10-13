@@ -1,8 +1,12 @@
-from drf_spectacular.utils import extend_schema
+from datetime import datetime
+
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.exceptions import APIException
+from django.utils.dateparse import parse_date, parse_datetime
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView
 
 from .models import ConciliateurProfile, Slot
@@ -14,21 +18,54 @@ class Conflict(APIException):
     status_code = 409
 
 
-@extend_schema(tags=["Conciliateurs"])
+@extend_schema(
+    tags=["Conciliateurs"],
+    parameters=[
+        OpenApiParameter("department", str, description="Code département (ex. 69, 2A)."),
+        OpenApiParameter("available", bool, description="true : seulement ceux qui ont au moins un créneau libre."),
+    ],
+)
 class ConciliateurListView(ListAPIView):
     serializer_class = ConciliateurSerializer
 
     def get_queryset(self):
-        return ConciliateurProfile.objects.visible().select_related("user")
+        qs = ConciliateurProfile.objects.visible().select_related("user")
+        params = self.request.query_params
+        if department := params.get("department"):
+            qs = qs.filter(department__iexact=department)
+        if params.get("available") == "true":
+            qs = qs.filter(slots__in=Slot.objects.free()).distinct()
+        return qs
 
 
-@extend_schema(tags=["Conciliateurs"])
+def _parse_bound(name, value):
+    """ISO datetime or date (midnight UTC) -> aware datetime; 400 if invalid."""
+    parsed = parse_datetime(value)
+    if parsed is None and (day := parse_date(value)):
+        parsed = datetime(day.year, day.month, day.day)
+    if parsed is None:
+        raise ValidationError({name: "Expected an ISO 8601 date or datetime."})
+    return timezone.make_aware(parsed) if timezone.is_naive(parsed) else parsed
+
+
+@extend_schema(
+    tags=["Conciliateurs"],
+    parameters=[
+        OpenApiParameter("from", OpenApiTypes.DATETIME, description="Début (inclus), date ou datetime ISO 8601."),
+        OpenApiParameter("to", OpenApiTypes.DATETIME, description="Fin (exclue), date ou datetime ISO 8601."),
+    ],
+)
 class FreeSlotListView(ListAPIView):
     serializer_class = SlotSerializer
 
     def get_queryset(self):
         c = get_object_or_404(ConciliateurProfile.objects.visible(), pk=self.kwargs["pk"])
-        return c.slots.filter(start__gt=timezone.now()).exclude(appointments__status="BOOKED")
+        qs = c.slots.free()
+        if value := self.request.query_params.get("from"):
+            qs = qs.filter(start__gte=_parse_bound("from", value))
+        if value := self.request.query_params.get("to"):
+            qs = qs.filter(start__lt=_parse_bound("to", value))
+        return qs
 
 
 @extend_schema(tags=["Créneaux"])

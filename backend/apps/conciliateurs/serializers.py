@@ -10,7 +10,7 @@ class ConciliateurSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConciliateurProfile
-        fields = ("id", "first_name", "last_name", "city", "bio")
+        fields = ("id", "first_name", "last_name", "city", "department", "bio")
 
 
 class SlotSerializer(serializers.ModelSerializer):

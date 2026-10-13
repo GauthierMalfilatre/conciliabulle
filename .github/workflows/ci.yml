@@ -40,7 +40,7 @@ jobs:
       - name: Tests
         run: python manage.py test
       - name: Publish the OpenAPI schema (for the front)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi-schema
           path: backend/openapi.yaml

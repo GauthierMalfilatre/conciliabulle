@@ -1,4 +1,4 @@
-# Justice Tech 2026 · Front-end
+# ConciliaBulle · Front-end
 
 Prise de rendez-vous avec un **conciliateur de justice**, « à la Doctolib », pensée pour
 un public qui comprend beaucoup de personnes âgées peu à l'aise avec l'informatique.

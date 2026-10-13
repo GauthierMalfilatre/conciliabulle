@@ -7,7 +7,7 @@ export function Logo() {
       <span className="grid size-9 place-items-center rounded-lg bg-white text-primary">
         <Icon name="scale" className="size-5" />
       </span>
-      <span className="text-xl font-bold tracking-tight max-[400px]:sr-only">JusticeTech</span>
+      <span className="text-xl font-bold tracking-tight max-[400px]:sr-only">ConciliaBulle</span>
     </Link>
   );
 }

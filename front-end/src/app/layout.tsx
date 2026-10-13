@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { template: "%s · Justice Tech", default: "Justice Tech" },
+  title: { template: "%s · ConciliaBulle", default: "ConciliaBulle" },
   description: "Trouvez un conciliateur près de chez vous et prenez rendez-vous en ligne.",
 };
 

@@ -17,9 +17,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/mes-rendez-vous
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Justice Tech//FR",
+    "PRODID:-//ConciliaBulle//FR",
     "BEGIN:VEVENT",
-    `UID:${a.id}@justice-tech`,
+    `UID:${a.id}@conciliabulle`,
     `DTSTAMP:${icsDate(new Date().toISOString())}`,
     `DTSTART:${icsDate(a.debut)}`,
     `DTEND:${icsDate(a.fin)}`,

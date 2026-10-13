@@ -2,43 +2,19 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { bookAppointment } from "@/app/actions/appointments";
 import { Checklist } from "@/components/appointments";
-import { ChoiceCard, Stepper, Summary, SummaryRow } from "@/components/booking";
+import { Summary, SummaryRow } from "@/components/booking";
 import { BackLink, Container } from "@/components/layout";
 import { ConciliateurAvatar, slotButtonClasses } from "@/components/conciliateurs";
-import {
-  Alert,
-  Button,
-  buttonClasses,
-  Card,
-  Field,
-  Icon,
-  Input,
-  Textarea,
-  type IconName,
-  type Tone,
-} from "@/components/ui";
-import { lastContact } from "@/lib/api/appointments";
+import { Alert, Button, buttonClasses, Card, Field, Icon, Input } from "@/components/ui";
 import { getConciliateur, getNextSlots, getSlot, parseSlotId } from "@/lib/api/conciliateurs";
 import { getPlatformSettings } from "@/lib/api/reglages";
-import { DOMAINES, MOTIF_AUTRE, rappelsTexte } from "@/lib/api/referentiel";
-import type { Domaine, Conciliateur, Slot } from "@/lib/api/types";
+import { rappelsTexte } from "@/lib/api/referentiel";
+import type { Conciliateur, Slot } from "@/lib/api/types";
 import { requireClient } from "@/lib/auth/session";
 import { formatDateTime, formatDay, formatTime } from "@/lib/format";
 import { param, withParams, type SearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "Prendre rendez-vous" };
-
-const STEPS = ["Motif", "Vérification"];
-
-const MOTIF_STYLE: Record<Domaine | "autre", { icon: IconName; tone: Tone }> = {
-  voisinage: { icon: "users", tone: "amber" },
-  logement: { icon: "building", tone: "sky" },
-  consommation: { icon: "file", tone: "emerald" },
-  impayes: { icon: "file", tone: "rose" },
-  travaux: { icon: "building", tone: "violet" },
-  commercial: { icon: "briefcase", tone: "indigo" },
-  autre: { icon: "message", tone: "sky" },
-};
 
 export default function NouveauRendezVousPage({ searchParams }: PageProps<"/rendez-vous/nouveau">) {
   return (
@@ -54,7 +30,7 @@ export default function NouveauRendezVousPage({ searchParams }: PageProps<"/rend
 
 async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const [user, settings] = await Promise.all([requireClient(), getPlatformSettings()]);
+  const [, settings] = await Promise.all([requireClient(), getPlatformSettings()]);
   const creneau = param(sp, "creneau") ?? "";
   const parsed = parseSlotId(creneau);
   const conciliateur = parsed ? await getConciliateur(parsed.conciliateurId) : null;
@@ -69,12 +45,7 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
     );
   }
 
-  const motifParam = param(sp, "motif");
-  const motif = motifParam && (motifParam in DOMAINES || motifParam === "autre")
-    ? (motifParam as Domaine | "autre")
-    : undefined;
-  const url = (extra: Record<string, string | undefined>) =>
-    withParams("/rendez-vous/nouveau", { creneau, motif, ...extra });
+  const url = (slotId: string) => withParams("/rendez-vous/nouveau", { creneau: slotId });
   const slot = await getSlot(creneau);
 
   if (!slot) {
@@ -82,20 +53,15 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <BackLink href={`/conciliateurs/${conciliateur.id}`}>Retour aux disponibilités</BackLink>
         <h1 className="text-3xl">Prendre rendez-vous avec {conciliateur.nom}</h1>
-        <Unavailable conciliateur={conciliateur} url={(id) => url({ creneau: id, etape: param(sp, "etape") })} />
+        <Unavailable conciliateur={conciliateur} url={url} />
       </div>
     );
   }
 
-  const etape = !motif ? 0 : 1;
   const duree = Math.round((new Date(slot.fin).getTime() - new Date(slot.debut).getTime()) / 60_000);
   const erreur = param(sp, "erreur");
-  const precedent = etape === 1 ? await lastContact() : undefined;
-  const contact = {
-    prenom: param(sp, "prenom") ?? precedent?.prenom ?? user.prenom,
-    nom: param(sp, "nom") ?? precedent?.nom ?? user.nom,
-    telephone: precedent?.telephone ?? "",
-  };
+  // Left empty unless a previous attempt failed: the appointment may be for someone else.
+  const contact = { prenom: param(sp, "prenom") ?? "", nom: param(sp, "nom") ?? "" };
 
   const summary = (
     <Card className="overflow-hidden">
@@ -122,15 +88,6 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
             <dd>{slot.lieu}</dd>
           </div>
         </div>
-        {motif && (
-          <div className="flex gap-3">
-            <Icon name="message" className="mt-1 size-5 shrink-0 text-primary" />
-            <div>
-              <dt className="sr-only">Motif</dt>
-              <dd>{motif === "autre" ? MOTIF_AUTRE.motif : DOMAINES[motif].motif}</dd>
-            </div>
-          </div>
-        )}
       </dl>
     </Card>
   );
@@ -139,30 +96,9 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
       <aside className="lg:sticky lg:top-24 lg:order-2">{summary}</aside>
       <div className="flex flex-col gap-6 lg:order-1">
-      <BackLink href={etape === 0 ? `/conciliateurs/${conciliateur.id}` : url({ motif: undefined })}>
-        {etape === 0 ? "Retour aux disponibilités" : "Étape précédente"}
-      </BackLink>
+      <BackLink href={`/conciliateurs/${conciliateur.id}`}>Retour aux disponibilités</BackLink>
 
-      <Stepper steps={STEPS} current={etape} />
-
-      {etape === 0 && (
-        <section className="flex flex-col gap-4">
-          <h1 className="text-3xl">Pour quelle raison souhaitez-vous ce rendez-vous ?</h1>
-          <div className="flex flex-col gap-3">
-            {[...(conciliateur.domaines.length ? conciliateur.domaines : (Object.keys(DOMAINES) as Domaine[])), "autre" as const].map((d) => (
-              <ChoiceCard
-                key={d}
-                href={url({ motif: d })}
-                {...MOTIF_STYLE[d]}
-                title={d === "autre" ? MOTIF_AUTRE.motif : DOMAINES[d].motif}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {etape === 1 && motif && (
-        <section className="flex flex-col gap-5">
+      <section className="flex flex-col gap-5">
           <h1 className="text-3xl">Vérifiez votre rendez-vous</h1>
 
           {erreur === "limite" && (
@@ -176,7 +112,7 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
               </p>
             </Alert>
           )}
-          {erreur === "pris" && <Unavailable conciliateur={conciliateur} url={(id) => url({ creneau: id, etape: "recap" })} />}
+          {erreur === "pris" && <Unavailable conciliateur={conciliateur} url={url} />}
           {erreur && !["limite", "pris", "coordonnees", "telephone"].includes(erreur) && (
             <Alert variant="destructive" title="Le rendez-vous n'a pas pu être enregistré">
               Réessayez, ou appelez le {settings.numeroAide}.
@@ -195,25 +131,21 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
               <SummaryRow icon="mapPin" label="Lieu">
                 {slot.lieu}
               </SummaryRow>
-              <SummaryRow icon="message" label="Motif">
-                {motif === "autre" ? MOTIF_AUTRE.motif : DOMAINES[motif].motif}
-              </SummaryRow>
             </Summary>
           </Card>
 
           <form action={bookAppointment} className="flex flex-col gap-5">
             <input type="hidden" name="creneau" value={slot.id} />
-            <input type="hidden" name="motif" value={motif} />
 
             <Card className="flex flex-col gap-5 p-6">
               <div>
-                <h2 className="text-xl font-semibold">Vos coordonnées</h2>
+                <h2 className="text-xl font-semibold">Pour qui est ce rendez-vous ?</h2>
                 <p className="text-base text-muted-foreground">
-                  Le conciliateur les utilise pour vous joindre. Personne d&apos;autre ne les voit.
+                  Les coordonnées de la personne qui viendra : vous-même ou un proche. Le conciliateur les utilise pour la joindre. Personne d&apos;autre ne les voit.
                 </p>
               </div>
               {(erreur === "coordonnees" || erreur === "telephone") && (
-                <Alert variant="destructive" title="Vérifiez vos coordonnées">
+                <Alert variant="destructive" title="Vérifiez les coordonnées">
                   Le prénom, le nom et un numéro de téléphone à 10 chiffres sont obligatoires.
                 </Alert>
               )}
@@ -226,10 +158,7 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
                 </Field>
               </div>
               <Field id="telephone" label="Téléphone" hint="Par exemple 06 12 34 56 78">
-                <Input id="telephone" name="telephone" type="tel" autoComplete="tel" defaultValue={contact.telephone} className="sm:w-80" required />
-              </Field>
-              <Field id="precision" label="En quelques mots (facultatif)" hint="Ce qui vous aidera à expliquer votre situation.">
-                <Textarea id="precision" name="precision" defaultValue={param(sp, "precision") ?? ""} maxLength={500} />
+                <Input id="telephone" name="telephone" type="tel" autoComplete="tel" className="sm:w-80" required />
               </Field>
               <p className="text-sm text-muted-foreground">{rappelsTexte(settings)}</p>
             </Card>
@@ -247,8 +176,7 @@ async function Tunnel({ searchParams }: { searchParams: Promise<SearchParams> })
               Choisir un autre horaire
             </Link>
           </form>
-        </section>
-      )}
+      </section>
       </div>
     </div>
   );

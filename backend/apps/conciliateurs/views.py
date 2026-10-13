@@ -1,11 +1,17 @@
+from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework.exceptions import APIException
 from rest_framework.generics import CreateAPIView, DestroyAPIView, ListAPIView, ListCreateAPIView
 from rest_framework.permissions import AllowAny
 
 from .models import ConciliateurProfile, Slot
 from .permissions import IsConciliateur
 from .serializers import ConciliateurRegisterSerializer, ConciliateurSerializer, SlotSerializer
+
+
+class Conflict(APIException):
+    status_code = 409
 
 
 class ConciliateurRegisterView(CreateAPIView):
@@ -26,7 +32,7 @@ class FreeSlotListView(ListAPIView):
 
     def get_queryset(self):
         c = get_object_or_404(ConciliateurProfile.objects.visible(), pk=self.kwargs["pk"])
-        return c.slots.filter(start__gt=timezone.now())
+        return c.slots.filter(start__gt=timezone.now()).exclude(appointments__status="BOOKED")
 
 
 class MySlotListCreateView(ListCreateAPIView):
@@ -45,6 +51,12 @@ class MySlotListCreateView(ListCreateAPIView):
 class MySlotDeleteView(DestroyAPIView):
     permission_classes = [IsConciliateur]
     serializer_class = SlotSerializer
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise Conflict("This slot has appointments and cannot be deleted.")
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

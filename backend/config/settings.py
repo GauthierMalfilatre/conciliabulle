@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'apps.accounts',
+    'apps.appointments',
     'apps.health',
 ]
 
@@ -148,3 +149,6 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # Testing only: let users see/book unverified conciliateurs. Set by `runserver --authorize-all=yes`.
 AUTHORIZE_ALL = False
+
+# Cancelling/rescheduling is refused when the appointment starts in less than this.
+CANCELLATION_WINDOW_HOURS = 24

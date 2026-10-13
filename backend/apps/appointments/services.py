@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 
 from apps.conciliateurs.models import ConciliateurProfile
+from apps.notifications import services as notifications
 
 from .models import Appointment
 
@@ -28,9 +29,11 @@ def book(user, slot, **details):
     check_bookable(slot)
     try:
         with transaction.atomic():
-            return Appointment.objects.create(user=user, slot=slot, **details)
+            appointment = Appointment.objects.create(user=user, slot=slot, **details)
     except IntegrityError:
         raise SlotTaken
+    notifications.notify_conciliateur(notifications.Kind.APPOINTMENT_BOOKED, appointment)
+    return appointment
 
 
 def check_changeable(appointment):
@@ -45,11 +48,13 @@ def cancel(appointment):
     check_changeable(appointment)
     appointment.status = Appointment.Status.CANCELLED
     appointment.save(update_fields=["status"])
+    notifications.notify_conciliateur(notifications.Kind.APPOINTMENT_CANCELLED, appointment)
 
 
 def update(appointment, slot=None, **details):
     """Change the slot and/or the contact details/motive of a booked appointment."""
     check_changeable(appointment)
+    old_slot = appointment.slot
     if slot is not None:
         if slot.pk == appointment.slot_id:
             raise ValidationError({"slot_id": "Already booked on this slot."})
@@ -62,3 +67,10 @@ def update(appointment, slot=None, **details):
             appointment.save()
     except IntegrityError:
         raise SlotTaken
+    kind = notifications.Kind
+    if appointment.slot.conciliateur_id != old_slot.conciliateur_id:
+        # Moved to another conciliateur: the first one loses it, the second one gains it.
+        notifications.notify_conciliateur(kind.APPOINTMENT_CANCELLED, appointment, slot=old_slot)
+        notifications.notify_conciliateur(kind.APPOINTMENT_BOOKED, appointment)
+    else:
+        notifications.notify_conciliateur(kind.APPOINTMENT_UPDATED, appointment, old_start=old_slot.start if old_slot.pk != appointment.slot_id else None)

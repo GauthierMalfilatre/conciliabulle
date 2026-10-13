@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.appointments',
     'apps.candidatures',
+    'apps.notifications',
     'apps.health',
 ]
 
@@ -155,6 +156,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Créneaux", "description": "Gestion de ses créneaux (conciliateur)."},
         {"name": "Rendez-vous", "description": "Prendre, modifier, annuler un rendez-vous."},
         {"name": "Calendrier", "description": "Export iCalendar (.ics) des rendez-vous du conciliateur, pour Google Calendar, Outlook..."},
+        {"name": "Notifications", "description": "Alertes in-app du conciliateur : rendez-vous pris, modifié, annulé."},
         {"name": "Candidatures", "description": "Devenir conciliateur : déposer ses informations pour être recontacté par l'association du département."},
         {"name": "Health", "description": "État de l'API."},
     ],

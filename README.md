@@ -15,9 +15,12 @@ Prérequis : Python 3.12+ (développé en 3.14).
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
 cd backend
+cp .env.example .env                  # configuration locale (git-ignorée) : à ouvrir, SECRET_KEY à générer
 python manage.py migrate
 python manage.py runserver
 ```
+
+**Sans installer Python**, avec Docker : `cp backend/.env.example backend/.env && docker compose up --build` (API sur <http://localhost:8000>, base sqlite conservée dans un volume).
 
 - **Swagger (doc interactive)** : <http://localhost:8000/api/docs/>
 - **Schéma OpenAPI** (pour générer un client TypeScript, etc.) : <http://localhost:8000/api/schema/>

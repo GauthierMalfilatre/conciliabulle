@@ -65,3 +65,34 @@ class NotificationApiTests(AppointmentTestCase):
         nid = Notification.objects.first().id
         self.assertEqual(stranger.post(f"/api/v1/me/notifications/{nid}/read").status_code, 404)
         self.assertEqual(self.client.get("/api/v1/me/notifications").status_code, 401)
+
+
+class EmailAlertTests(AppointmentTestCase):
+    def test_booking_emails_the_conciliateur_after_commit(self):
+        from django.core import mail
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.book()
+        self.assertEqual(len(mail.outbox), 1)
+        m = mail.outbox[0]
+        self.assertEqual((m.to, m.subject), ([self.c.user.email], "Nouveau rendez-vous"))
+        self.assertIn("Téléphone : +33 6 12 34 56 78", m.body)
+        self.assertEqual(self.api.get("/api/v1/appointments").status_code, 200)
+
+    def test_cancel_email_has_no_phone(self):
+        from django.core import mail
+
+        appt_id = self.book().json()["id"]
+        with self.captureOnCommitCallbacks(execute=True):
+            self.api.delete(f"/api/v1/appointments/{appt_id}")
+        self.assertNotIn("Téléphone", mail.outbox[-1].body)
+        self.assertEqual(mail.outbox[-1].subject, "Rendez-vous annulé")
+
+    def test_mail_failure_does_not_break_the_booking(self):
+        from unittest import mock
+
+        with mock.patch("apps.notifications.services.send_mail", side_effect=OSError("smtp down")):
+            with self.assertLogs("apps.notifications.services", level="ERROR"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    r = self.book()
+        self.assertEqual(r.status_code, 201)

@@ -131,11 +131,26 @@ STATIC_URL = 'static/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Alert e-mails go to the console, unless EMAIL_HOST is set: then SMTP, configured by env vars.
+if os.environ.get("EMAIL_HOST"):
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': os.environ["EMAIL_HOST"],
+                'port': int(os.environ.get("EMAIL_PORT", "587")),
+                'username': os.environ.get("EMAIL_HOST_USER", ""),
+                'password': os.environ.get("EMAIL_HOST_PASSWORD", ""),
+                'use_tls': True,
+            },
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
@@ -179,3 +194,5 @@ AVAILABILITY_HORIZON_WEEKS = 8
 
 # Shown to the plaignant after booking, unless the conciliateur wrote their own.
 DEFAULT_APPOINTMENT_INSTRUCTIONS = "Venez avec tout document pouvant être utile à votre dossier."
+
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@justice-tech.local")

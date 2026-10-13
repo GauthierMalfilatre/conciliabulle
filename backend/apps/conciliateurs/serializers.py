@@ -16,7 +16,7 @@ class ConciliateurSerializer(serializers.ModelSerializer):
 class SlotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Slot
-        fields = ("id", "start", "end")
+        fields = ("id", "start", "end", "location")
 
     def validate(self, data):
         if data["end"] <= data["start"]:

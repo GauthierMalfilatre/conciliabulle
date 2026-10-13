@@ -108,12 +108,18 @@ class SlotTests(TestCase):
         self.c = make_conciliateur()
         self.api = client_for(self.c.user)
         start = timezone.now() + timedelta(days=3)
-        self.body = {"start": start.isoformat(), "end": (start + timedelta(hours=1)).isoformat()}
+        self.body = {"start": start.isoformat(), "end": (start + timedelta(hours=1)).isoformat(), "location": "Mairie de Lyon 3e, salle 2"}
 
     def test_create_and_list_free_slots(self):
         self.assertEqual(self.api.post("/api/v1/me/slots", self.body, format="json").status_code, 201)
         user = client_for(User.objects.create_user("u@b.fr", "pw"))
         self.assertEqual(len(user.get(f"/api/v1/conciliateurs/{self.c.id}/slots").json()), 1)
+
+    def test_location_is_required_and_exposed(self):
+        self.assertEqual(self.api.post("/api/v1/me/slots", {k: v for k, v in self.body.items() if k != "location"}, format="json").status_code, 400)
+        self.api.post("/api/v1/me/slots", self.body, format="json")
+        user = client_for(User.objects.create_user("u@b.fr", "pw"))
+        self.assertEqual(user.get(f"/api/v1/conciliateurs/{self.c.id}/slots").json()[0]["location"], self.body["location"])
 
     def test_invalid_slots(self):
         self.assertEqual(self.api.post("/api/v1/me/slots", {**self.body, "end": self.body["start"]}, format="json").status_code, 400)

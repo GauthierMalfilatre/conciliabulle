@@ -36,6 +36,7 @@ class Slot(models.Model):
     conciliateur = models.ForeignKey(ConciliateurProfile, on_delete=models.CASCADE, related_name="slots")
     start = models.DateTimeField()
     end = models.DateTimeField()
+    location = models.CharField(max_length=255, help_text="Where the appointment takes place (address, room...).")
 
     class Meta:
         ordering = ("start",)

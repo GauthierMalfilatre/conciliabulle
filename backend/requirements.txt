@@ -1,7 +1,7 @@
 # Fully pinned (reproducible installs). Direct dependencies: django, djangorestframework,
 # djangorestframework-simplejwt, drf-spectacular, django-cors-headers, python-dotenv, gunicorn, whitenoise.
 # To upgrade: bump the versions here (Dependabot proposes it), run the tests, commit.
-asgiref==3.12.1
+asgiref==3.13.0
 attrs==26.1.0
 Django==6.1.2
 django-cors-headers==4.9.0
